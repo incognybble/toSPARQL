@@ -55,20 +55,23 @@ def treeToSparql(tree, hashed, varcounter=0):
     var_opt = None
     bindings = {}
     not_triples = []
+    extras = []
 
     # handling for joined expression
     if len(tree["left"]) > 2:
         varcounter += 1
         var_left = varcounter
-        (trips, hashed, bindings_left, not_trips) = treeToSparql(tree["left"], hashed, var_left)
+        (trips, hashed, bindings_left, not_trips, extra) = treeToSparql(tree["left"], hashed, var_left)
         triples += trips
         not_triples += not_trips
+        extras += extra
 
         varcounter += 1
         var_right = varcounter
-        (trips, hashed, bindings_right, not_trips) = treeToSparql(tree["right"], hashed, var_right)
+        (trips, hashed, bindings_right, not_trips, extra) = treeToSparql(tree["right"], hashed, var_right)
         triples += trips
         not_triples += not_trips
+        extras += extra
 
         bindings = dict(bindings_left.items() + bindings_right.items())
 
@@ -77,7 +80,30 @@ def treeToSparql(tree, hashed, varcounter=0):
         elif tree["connector"] == "->":
             triples += [("?var"+str(var_right), getAxis(tree["connector"]), "?var"+str(var_left))]
         elif tree["connector"] == "^":
-            triples += [("?var"+str(var_left), getAxis(tree["connector"]), "?var"+str(var_right))]
+            #triples += [("?var"+str(var_left), getAxis(tree["connector"]), "?var"+str(var_right))]
+
+            varcounter += 1
+            time1 = varcounter
+            varcounter += 1
+            time2 = varcounter
+            varcounter += 1
+            start1 = varcounter
+            varcounter += 1
+            start2 = varcounter
+            varcounter += 1
+            end1 = varcounter
+            varcounter += 1
+            end2 = varcounter
+            
+            triples += [("?var"+str(var_left), "dada:targets", "?var"+str(time1))]
+            triples += [("?var"+str(var_right), "dada:targets", "?var"+str(time2))]
+            triples += [("?var"+str(time1), "dada:start", "?var"+str(start1))]
+            triples += [("?var"+str(time2), "dada:start", "?var"+str(start2))]
+            triples += [("?var"+str(time1), "dada:end", "?var"+str(end1))]
+            triples += [("?var"+str(time2), "dada:end", "?var"+str(end2))]
+
+            extras += ["filter( " + "?var"+str(start2) + " >= " + "?var"+str(start1) + ")."]
+            extras += ["filter( " + "?var"+str(end2) + " <= " + "?var"+str(end1) + ")."]
         else:
             raise Exception("Unhandled 2nd level connector " + tree["connector"])
 
@@ -126,7 +152,7 @@ def treeToSparql(tree, hashed, varcounter=0):
             else:
                 raise Exception("Unrecognised = connector " + tree["connector"])
 
-    return (triples, hashed, bindings, not_triples)
+    return (triples, hashed, bindings, not_triples, extras)
 
 def getAxis(axis):
     if axis == "->":
@@ -134,9 +160,9 @@ def getAxis(axis):
     elif axis == "^":
         axis_str = "emu:contains"
     elif axis == "=":
-        axis_str = "maus:val"
+        axis_str = "dada:label"
     elif axis == "!=":
-        axis_str = "maus:val"
+        axis_str = "dada:label"
     elif axis == "&":
         axis_str = "owl:sameAs"
     elif axis == "type":
@@ -161,7 +187,7 @@ def emuToSparql(emu):
     p = parser(emu)
 
     hashed = [False]
-    (trips, hashed, bindings, not_trips) = treeToSparql(p, hashed)
+    (trips, hashed, bindings, not_trips, extras) = treeToSparql(p, hashed)
 
     s = "select "
     for var in hashed[1:]:
@@ -170,6 +196,9 @@ def emuToSparql(emu):
     s = s + "\nwhere {\n"
     for trip in trips:
         s = conversion_tools.prettyTriple(s, trip)
+
+    for extra in extras:
+        s = s + "\t" + extra + "\n"
 
     if len(not_trips) > 0:
         s = s + "\tFILTER NOT EXISTS {\n"
@@ -202,7 +231,8 @@ def test():
              "#Word!=C&Accent=Nuclear|a|'time space'",
              "#Word!=C|'hedge hog'|r&Accent=Nuclear|a|q",
              #"[Word=C]"
-             "maus:orthography='#'"
+             "maus:orthography='#'",
+             "maus:orthography='time'^maus:phonetic='t'"
              ]
 
     for t in tests:
