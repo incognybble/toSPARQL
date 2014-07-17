@@ -78,7 +78,24 @@ def treeToSparql(tree, hashed, varcounter=0):
         if tree["connector"] == "&":
             triples += [("?var"+str(var_left), getAxis(tree["connector"]), "?var"+str(var_right))]
         elif tree["connector"] == "->":
-            triples += [("?var"+str(var_right), getAxis(tree["connector"]), "?var"+str(var_left))]
+            #triples += [("?var"+str(var_right), getAxis(tree["connector"]), "?var"+str(var_left))]
+
+            varcounter += 1
+            time1 = varcounter
+            varcounter += 1
+            time2 = varcounter
+            varcounter += 1
+            end = varcounter
+            varcounter += 1
+            start = varcounter
+
+            triples += [("?var"+str(var_left), "dada:targets", "?var"+str(time1))]
+            triples += [("?var"+str(var_right), "dada:targets", "?var"+str(time2))]
+            triples += [("?var"+str(time1), "dada:end", "?var"+str(end))]
+            triples += [("?var"+str(time2), "dada:start", "?var"+str(start))]
+
+            extras += ["filter( " + "?var"+str(end) + " = " + "?var"+str(start) + ")."]
+            
         elif tree["connector"] == "^":
             #triples += [("?var"+str(var_left), getAxis(tree["connector"]), "?var"+str(var_right))]
 
@@ -232,7 +249,8 @@ def test():
              "#Word!=C|'hedge hog'|r&Accent=Nuclear|a|q",
              #"[Word=C]"
              "maus:orthography='#'",
-             "maus:orthography='time'^maus:phonetic='t'"
+             "maus:orthography='time'^maus:phonetic='t'",
+             "maus:phonetic='t'->maus:phonetic='Ae'"
              ]
 
     for t in tests:

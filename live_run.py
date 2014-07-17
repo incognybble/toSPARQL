@@ -2,8 +2,8 @@ from emu_parser import emuToSparql
 
 import pyalveo
 
-if __name__ == "__main__" :
-    s = emuToSparql("maus:orthography='time'^maus:phonetic='t'")
+def runQuery(q):
+    s = emuToSparql(q)
     query = """
         PREFIX rdfs:<http://www.w3.org/2000/01/rdf-schema#>
         PREFIX xsd:<http://www.w3.org/2001/XMLSchema#>
@@ -28,20 +28,17 @@ if __name__ == "__main__" :
         PREFIX dada:<http://purl.org/dada/schema/0.2#>
         PREFIX owl: <http://www.w3.org/2002/07/owl#>
         PREFIX ausnc: <http://ns.ausnc.org.au/schemas/ausnc_md_model/>
-        select ?var1  ?var2 ?start1 ?start2 ?end1 ?end2
+        select ?var1  ?var2 ?start ?end
         where {
-        ?var1 dada:type maus:orthography.
-        ?var1 dada:label 'time'.
+        ?var1 dada:type maus:phonetic.
+        ?var1 dada:label 't'.
         ?var2 dada:type maus:phonetic.
-        ?var2 dada:label 't'.
+        ?var2 dada:label 'Ae'.
         ?var1 dada:targets ?time1.
         ?var2 dada:targets ?time2.
-        ?time1 dada:start ?start1.
-        ?time2 dada:start ?start2.
-        ?time1 dada:end ?end1.
-        ?time2 dada:end ?end2.
-        filter( ?start2 >= ?start1 ).
-        filter( ?end2 <= ?end1 ).
+        ?time1 dada:end ?end.
+        ?time2 dada:start ?start.
+        filter( ?end = ?start ).
         }
         LIMIT 10
     """
@@ -49,7 +46,7 @@ if __name__ == "__main__" :
     # ?var2 dada:start '5.02'^^xsd:float.
     # filter( ?number < 50.0 )
 
-
+    print q
     print query
     
     client = pyalveo.Client()
@@ -60,5 +57,8 @@ if __name__ == "__main__" :
         for r in result:
             print str(r) + ": " + result[r]["value"]
         print ''
-            
 
+
+if __name__ == "__main__" :
+    #runQuery("maus:orthography='time'^maus:phonetic='t'")
+    runQuery("maus:phonetic='t'->maus:phonetic='Ae'")
