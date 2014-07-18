@@ -81,6 +81,8 @@ def treeToSparql(tree, hashed, varcounter=0):
             #triples += [("?var"+str(var_right), getAxis(tree["connector"]), "?var"+str(var_left))]
 
             varcounter += 1
+            parent = varcounter
+            varcounter += 1
             time1 = varcounter
             varcounter += 1
             time2 = varcounter
@@ -89,6 +91,8 @@ def treeToSparql(tree, hashed, varcounter=0):
             varcounter += 1
             start = varcounter
 
+            triples += [("?var"+str(var_left), "dada:partof", "?var"+str(parent))]
+            triples += [("?var"+str(var_right), "dada:partof", "?var"+str(parent))]
             triples += [("?var"+str(var_left), "dada:targets", "?var"+str(time1))]
             triples += [("?var"+str(var_right), "dada:targets", "?var"+str(time2))]
             triples += [("?var"+str(time1), "dada:end", "?var"+str(end))]
@@ -99,6 +103,8 @@ def treeToSparql(tree, hashed, varcounter=0):
         elif tree["connector"] == "^":
             #triples += [("?var"+str(var_left), getAxis(tree["connector"]), "?var"+str(var_right))]
 
+            varcounter += 1
+            parent = varcounter
             varcounter += 1
             time1 = varcounter
             varcounter += 1
@@ -111,7 +117,9 @@ def treeToSparql(tree, hashed, varcounter=0):
             end1 = varcounter
             varcounter += 1
             end2 = varcounter
-            
+
+            triples += [("?var"+str(var_left), "dada:partof", "?var"+str(parent))]
+            triples += [("?var"+str(var_right), "dada:partof", "?var"+str(parent))]
             triples += [("?var"+str(var_left), "dada:targets", "?var"+str(time1))]
             triples += [("?var"+str(var_right), "dada:targets", "?var"+str(time2))]
             triples += [("?var"+str(time1), "dada:start", "?var"+str(start1))]
