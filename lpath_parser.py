@@ -51,22 +51,6 @@ def parser(text):
     
     return fexpr.parseString(text)
 
-def xlpathToSparql(lpath):
-    p = parser(lpath)
-
-    pdict = p.asDict()
-
-    (triples, varcounter, end_var) = treeToSparql(pdict)
-
-    s = "select " + end_var
-
-    s = s + "\nwhere {\n"
-    for trip in triples:
-        s = conversion_tools.prettyTriple(s, trip)
-    s = s + "}"
-    
-    return s
-
 def lpathToSparql(lpath):
     p = parser(lpath)
 
@@ -75,6 +59,7 @@ def lpathToSparql(lpath):
     data = {}
     data["triples"] = []
     data["varcounter"] = 0
+    data["extras"] = []
 
     data = treeToSparql(pdict, data)
 
@@ -82,60 +67,7 @@ def lpathToSparql(lpath):
     
     return s
 
-def xtreeToSparql(tree, left_step="?root", varcounter = 0, end_var=None):
-
-    triples = []
-
-    if not tree.has_key("abspath"):
-        # edge case, one node only
-        locstep = tree["right_step"]["locstep"].asDict()
-        varcounter += 1
-        var = "?var"+str(varcounter)
-
-        triples.append((left_step, getAxis(locstep["axis"]), var))
-        triples.append((var, "rdf:val", locstep["node"]))
-        left_step = var
-        end_var = var
-
-        if locstep.has_key("predicate"):
-            (pred_triples, varcounter, dump_var) = treeToSparql(locstep["predicate"].asDict(), left_step=left_step, varcounter=varcounter)
-            triples += pred_triples
-    else:
-        abspath = tree["abspath"].asDict()
-        
-        locstep = abspath["left_step"]["locstep"].asDict()
-        varcounter += 1
-        var = "?var"+str(varcounter)
-
-        triples.append((left_step, getAxis(locstep["axis"]), var))
-        triples.append((var, "rdf:val", locstep["node"]))
-        left_step = var
-
-        if locstep.has_key("predicate"):
-            (pred_triples, varcounter, dump_var) = treeToSparql(locstep["predicate"].asDict(), left_step=left_step, varcounter=varcounter)
-            triples += pred_triples
-
-        if abspath.has_key("right_step"):
-            locstep = abspath["right_step"]["locstep"].asDict()
-            varcounter += 1
-            var = "?var"+str(varcounter)
-
-            triples.append((left_step, getAxis(locstep["axis"]), var))
-            triples.append((var, "rdf:val", locstep["node"]))
-
-            left_step = var
-            end_var = var
-
-            if locstep.has_key("predicate"):
-                (pred_triples, varcounter, dump_var) = treeToSparql(locstep["predicate"].asDict(), left_step=left_step, varcounter=varcounter)
-                triples += pred_triples
-        else:
-            (nest_triples, varcounter, end_var) = treeToSparql(abspath, left_step=left_step, varcounter=varcounter, end_var = var)
-            triples += nest_triples
-
-    return (triples, varcounter, end_var)
-
-def treeToSparql(tree, data, left_step="?root"):
+def treeToSparql(tree, data, left_step=None):
 
     if not tree.has_key("abspath"):
         # edge case, one node only
@@ -143,7 +75,10 @@ def treeToSparql(tree, data, left_step="?root"):
         data["varcounter"] += 1
         var = "?var"+str(data["varcounter"])
 
-        data["triples"].append((left_step, getAxis(locstep["axis"]), var))
+        if left_step != None:
+            #data["triples"].append((left_step, getAxis(locstep["axis"]), var))
+            axisToTriples(locstep["axis"], data, left_step, var)
+            
         data["triples"].append((var, "dada:label", locstep["node"]))
         left_step = var
         
@@ -166,7 +101,10 @@ def treeToSparql(tree, data, left_step="?root"):
         data["varcounter"] += 1
         var = "?var"+str(data["varcounter"])
 
-        data["triples"].append((left_step, getAxis(locstep["axis"]), var))
+        if left_step != None:
+            #data["triples"].append((left_step, getAxis(locstep["axis"]), var))
+            axisToTriples(locstep["axis"], data, left_step, var)
+
         data["triples"].append((var, "dada:label", locstep["node"]))
         left_step = var
 
@@ -187,7 +125,8 @@ def treeToSparql(tree, data, left_step="?root"):
             data["varcounter"] += 1
             var = "?var"+str(data["varcounter"])
 
-            data["triples"].append((left_step, getAxis(locstep["axis"]), var))
+            #data["triples"].append((left_step, getAxis(locstep["axis"]), var))
+            axisToTriples(locstep["axis"], data, left_step, var)
             data["triples"].append((var, "dada:label", locstep["node"]))
 
             left_step = var
@@ -208,7 +147,43 @@ def treeToSparql(tree, data, left_step="?root"):
             data = treeToSparql(abspath, data, left_step=left_step)
             
     return data
+
+def axisToTriples(axis, data, var_left, var_right):
+    
+    if axis == "/":
+        #data["triples"].append((var_left, getAxis(axis), var_right))
         
+        data["varcounter"] += 1
+        parent = data["varcounter"]
+        data["varcounter"] += 1
+        time1 = data["varcounter"]
+        data["varcounter"] += 1
+        time2 = data["varcounter"]
+        data["varcounter"] += 1
+        start1 = data["varcounter"]
+        data["varcounter"] += 1
+        start2 = data["varcounter"]
+        data["varcounter"] += 1
+        end1 = data["varcounter"]
+        data["varcounter"] += 1
+        end2 = data["varcounter"]
+
+        data["triples"] += [(""+str(var_left), "dada:partof", "?var"+str(parent))]
+        data["triples"] += [(""+str(var_right), "dada:partof", "?var"+str(parent))]
+        data["triples"] += [(""+str(var_left), "dada:targets", "?var"+str(time1))]
+        data["triples"] += [(""+str(var_right), "dada:targets", "?var"+str(time2))]
+        data["triples"] += [("?var"+str(time1), "dada:start", "?var"+str(start1))]
+        data["triples"] += [("?var"+str(time2), "dada:start", "?var"+str(start2))]
+        data["triples"] += [("?var"+str(time1), "dada:end", "?var"+str(end1))]
+        data["triples"] += [("?var"+str(time2), "dada:end", "?var"+str(end2))]
+
+        data["extras"] += ["filter( " + "?var"+str(start2) + " >= " + "?var"+str(start1) + ")."]
+        data["extras"] += ["filter( " + "?var"+str(end2) + " <= " + "?var"+str(end1) + ")."]
+        
+    else:
+        data["triples"].append((var_left, getAxis(axis), var_right))
+
+    return data
 
 def getAxis(axis):
     if axis == "//":

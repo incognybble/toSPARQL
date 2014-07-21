@@ -15,9 +15,14 @@ def convertToSparql(data):
     s = "select " + data["end_var"]
 
     s = s + "\nwhere {\n"
+    
     triples = data["triples"]
     for trip in triples:
         s = prettyTriple(s, trip)
+
+    extras = data["extras"]
+    for extra in extras:
+        s = s + "\t" + extra + "\n"
     s = s + "}"
 
     if data.has_key("not_trips"):

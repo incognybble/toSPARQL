@@ -1,9 +1,16 @@
 from emu_parser import emuToSparql
+from lpath_parser import lpathToSparql
 
 import pyalveo
 
-def runQuery(q):
-    s = emuToSparql(q)
+def runQuery(q, lang):
+    if lang == "Emu":
+        s = emuToSparql(q)
+    elif lang == "LPath":
+        s = lpathToSparql(q)
+    else:
+        raise Exception("Unrecognised language " + lang)
+    
     query = """
         PREFIX rdfs:<http://www.w3.org/2000/01/rdf-schema#>
         PREFIX xsd:<http://www.w3.org/2001/XMLSchema#>
@@ -60,5 +67,7 @@ def runQuery(q):
 
 
 if __name__ == "__main__" :
-    #runQuery("maus:orthography='time'^maus:phonetic='t'")
-    runQuery("maus:phonetic='t'->maus:phonetic='Ae'")
+    runQuery("maus:orthography='time'^maus:phonetic='t'", "Emu")
+    runQuery("//time[@dada:type=maus:orthography]/t[@dada:type=maus:phonetic]", "LPath")
+    
+    #runQuery("maus:phonetic='t'->maus:phonetic='Ae'")
