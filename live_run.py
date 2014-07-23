@@ -67,7 +67,8 @@ def runQuery(q, lang):
 
 
 if __name__ == "__main__" :
-    runQuery("maus:orthography='time'^maus:phonetic='t'", "Emu")
-    runQuery("//time[@dada:type=maus:orthography]/t[@dada:type=maus:phonetic]", "LPath")
+    #runQuery("maus:orthography='time'^maus:phonetic='t'", "Emu")
+    #runQuery("//time[@dada:type=maus:orthography]/t[@dada:type=maus:phonetic]", "LPath")
     
-    #runQuery("maus:phonetic='t'->maus:phonetic='Ae'")
+    runQuery("maus:phonetic='t'->maus:phonetic='Ae'", "Emu")
+    runQuery("//t[@dada:type=maus:phonetic]->Ae[@dada:type=maus:phonetic]", "LPath")

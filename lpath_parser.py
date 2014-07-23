@@ -151,7 +151,6 @@ def treeToSparql(tree, data, left_step=None):
 def axisToTriples(axis, data, var_left, var_right):
     
     if axis == "/":
-        #data["triples"].append((var_left, getAxis(axis), var_right))
         
         data["varcounter"] += 1
         parent = data["varcounter"]
@@ -179,7 +178,29 @@ def axisToTriples(axis, data, var_left, var_right):
 
         data["extras"] += ["filter( " + "?var"+str(start2) + " >= " + "?var"+str(start1) + ")."]
         data["extras"] += ["filter( " + "?var"+str(end2) + " <= " + "?var"+str(end1) + ")."]
+
+    elif axis == "->":
         
+        data["varcounter"] += 1
+        parent = data["varcounter"]
+        data["varcounter"] += 1
+        time1 = data["varcounter"]
+        data["varcounter"] += 1
+        time2 = data["varcounter"]
+        data["varcounter"] += 1
+        end = data["varcounter"]
+        data["varcounter"] += 1
+        start = data["varcounter"]
+
+        data["triples"] += [(""+str(var_left), "dada:partof", "?var"+str(parent))]
+        data["triples"] += [(""+str(var_right), "dada:partof", "?var"+str(parent))]
+        data["triples"] += [(""+str(var_left), "dada:targets", "?var"+str(time1))]
+        data["triples"] += [(""+str(var_right), "dada:targets", "?var"+str(time2))]
+        data["triples"] += [("?var"+str(time1), "dada:end", "?var"+str(end))]
+        data["triples"] += [("?var"+str(time2), "dada:start", "?var"+str(start))]
+
+        data["extras"] += ["filter( " + "?var"+str(end) + " = " + "?var"+str(start) + ")."]
+            
     else:
         data["triples"].append((var_left, getAxis(axis), var_right))
 
