@@ -43,8 +43,8 @@ def parser(text):
     exp_basic = Group(Optional(g_hash) + g_string).setResultsName("left") + g_equ + Group(g_vals).setResultsName("right")
     exp = Group(exp_basic)
     exp = exp.setResultsName("left") + g_amp + exp.setResultsName("right") | \
-            exp.setResultsName("left") + g_hat + exp.setResultsName("right") | \
-            exp.setResultsName("left") + g_seq + exp.setResultsName("right") | \
+            g_left_brack + exp.setResultsName("left") + g_hat + exp.setResultsName("right") + g_right_brack | \
+            g_left_brack + exp.setResultsName("left") + g_seq + exp.setResultsName("right") + g_right_brack | \
             exp_basic
     
     return exp.parseString(text)
@@ -251,14 +251,14 @@ def test():
              "#Word=C",
              "Accent=Nuclear|a|r",
              "Word=C&Accent=Nuclear",
-             "#Word=C->Accent=Nuclear|a|r",
+             "[#Word=C->Accent=Nuclear|a|r]",
              "#Word!=C&Accent=Nuclear|a",
              "#Word!=C&Accent=Nuclear|a|'time space'",
              "#Word!=C|'hedge hog'|r&Accent=Nuclear|a|q",
              #"[Word=C]"
              "maus:orthography='#'",
-             "maus:orthography='time'^maus:phonetic='t'",
-             "maus:phonetic='t'->maus:phonetic='Ae'"
+             "[maus:orthography='time'^maus:phonetic='t']",
+             "[maus:phonetic='t'->maus:phonetic='Ae']"
              ]
 
     for t in tests:
