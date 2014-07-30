@@ -15,7 +15,7 @@ def parser(text):
     # grammar
     #g_string = "'"+Word(alphas)+"'" | Word(alphas)
     g_quote = Literal("'").suppress()
-    g_text = Regex("[\w\s\:\#]+").setResultsName("text")
+    g_text = Regex("[\w\s\:\#\.]+").setResultsName("text")
     g_string = Optional(g_quote) + g_text + Optional(g_quote)
     g_equ =  Literal("!=").setResultsName("connector") | Literal("=").setResultsName("connector")
     g_amp = Literal("&").setResultsName("connector")
@@ -26,30 +26,84 @@ def parser(text):
 
     g_left_brack = Literal("[").suppress()
     g_right_brack = Literal("]").suppress()
+
     
-
-    #g_val = g_string + Optional(g_or)
-    #g_vals = OneOrMore(g_val)
-
-    # use with or-suppress
-    #g_val = g_or + g_string
-    #g_vals = g_string + OneOrMore(g_val)
-
-
     g_vals = Forward()
     g_vals << g_string + ZeroOrMore(Group(g_or + g_vals).setResultsName("or_group"))
 
-    #exp_basic = Optional(g_left_brack) + Group(Optional(g_hash) + g_string).setResultsName("left") + g_equ + Group(g_vals).setResultsName("right") + Optional(g_right_brack)
+    # working
+    """
     exp_basic = Group(Optional(g_hash) + g_string).setResultsName("left") + g_equ + Group(g_vals).setResultsName("right")
     exp = Group(exp_basic)
     exp = exp.setResultsName("left") + g_amp + exp.setResultsName("right") | \
             g_left_brack + exp.setResultsName("left") + g_hat + exp.setResultsName("right") + g_right_brack | \
             g_left_brack + exp.setResultsName("left") + g_seq + exp.setResultsName("right") + g_right_brack | \
             exp_basic
+    """
+
+    # recursion
+    simpleq = Forward()
+    complexq = Forward()
+
+    exp = (simpleq | complexq).setResultsName("exp")
+    exp_basic = Group(Group(Optional(g_hash) + g_string).setResultsName("left") + g_equ + Group(g_vals).setResultsName("right"))
+    simpleq << (Group(exp_basic.setResultsName("left") + g_amp + simpleq.setResultsName("right")) | exp_basic)
+    complexq << ( Group(g_left_brack + exp.setResultsName("left") + g_hat + exp.setResultsName("right") + g_right_brack) | \
+                  Group(g_left_brack + exp.setResultsName("left") + g_seq + exp.setResultsName("right") + g_right_brack) )
+    
+    
     
     return exp.parseString(text)
 
-def treeToSparql(tree, hashed, varcounter=0):
+def emuToSparql(emu):
+    p = parser(emu)
+
+    pdict = p.asDict()
+
+    data = {}
+    data["triples"] = []
+    data["varcounter"] = 0
+    data["extras"] = []
+    
+    data["hashed"] = [False]
+    data["var_opt"] = None
+    data["bindings"] = {}
+    data["not_triples"] = []
+    
+
+    data = treeToSparql(pdict, data)
+
+    data["end_var"] = data["hashed"][1]
+    
+    #print data
+    s = conversion_tools.convertToSparql(data)
+    
+    return s
+
+def treeToSparql(tree, data):
+    exp = tree["exp"]
+
+    if len(exp["left"]) > 2:
+        data = treeToSparql(exp["left"], data)
+
+    if exp["connector"] == "=":
+        data["varcounter"] += 1
+        var_left = data["varcounter"]
+        
+        data["triples"] += [("?var"+str(var_left), getAxis("type"), exp["left"].text)]
+        data["triples"] += [("?var"+str(var_left), getAxis(exp["connector"]), exp["right"].text)]
+
+        if len(exp["left"].hash)>0:
+            if data["hashed"][0] == False:
+                data["hashed"][0] = True
+            data["hashed"].append(exp["left"].text)
+        else:
+            if data["hashed"][0] == False:
+                data["hashed"].append(exp["left"].text)
+        
+    return data
+
+def xtreeToSparql(tree, hashed, varcounter=0):
     triples = []
     #var_opts = []
     var_opt = None
@@ -197,6 +251,7 @@ def getAxis(axis):
         
     return axis_str
 
+
 def get_ors(tree, ors):
     ors.append(tree.text)
 
@@ -208,7 +263,7 @@ def get_ors(tree, ors):
     # it is only here for consistency
     return ors
 
-def emuToSparql(emu):
+def xemuToSparql(emu):
     p = parser(emu)
 
     hashed = [False]
