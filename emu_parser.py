@@ -71,36 +71,134 @@ def emuToSparql(emu):
     data["not_triples"] = []
     
 
-    data = treeToSparql(pdict, data)
+    data = treeToSparql(pdict["exp"], data)
 
-    data["end_var"] = data["hashed"][1]
+    data["end_var"] = data["hashed"][1:]
     
     #print data
     s = conversion_tools.convertToSparql(data)
     
     return s
 
-def treeToSparql(tree, data):
-    exp = tree["exp"]
-
-    if len(exp["left"]) > 2:
-        data = treeToSparql(exp["left"], data)
-
-    if exp["connector"] == "=":
+def treeToSparql(tree, data, var=None):
+    
+    if len(tree["left"]) > 2:
         data["varcounter"] += 1
-        var_left = data["varcounter"]
-        
-        data["triples"] += [("?var"+str(var_left), getAxis("type"), exp["left"].text)]
-        data["triples"] += [("?var"+str(var_left), getAxis(exp["connector"]), exp["right"].text)]
+        left_var = "?var"+str(data["varcounter"])
+        data = treeToSparql(tree["left"], data, left_var)
 
-        if len(exp["left"].hash)>0:
+        data["varcounter"] += 1
+        right_var = "?var"+str(data["varcounter"])
+        data = treeToSparql(tree["right"], data, right_var)
+
+        axisToTriples(tree["connector"], data, left_var, right_var)
+
+    else:
+        
+        if var == None:
+            data["varcounter"] += 1
+            var = "?var"+str(data["varcounter"])
+
+
+        if len(tree["right"]) > 1:
+            #or_group case
+            
+            #be careful of usage here as lists pass by reference
+            var_opts = get_ors(tree["right"], [])
+
+            data["varcounter"] += 1
+            var_opt = "?var"+str(data["varcounter"])
+            
+            if tree["connector"] == "=":
+                data["triples"] += [(var, getAxis(tree["connector"]), var_opt)]
+            elif tree["connector"] == "!=":
+                data["not_triples"] += [(var, getAxis(tree["connector"]), var_opt)]
+            else:
+                raise Exception("Unrecognised = connector " + tree["connector"])
+                
+            data["bindings"][var_opt] = var_opts
+
+        else:
+            
+            if tree["connector"] == "=":
+                data["triples"] += [(var, getAxis("type"), tree["left"].text)]
+                data["triples"] += [(var, getAxis(tree["connector"]), tree["right"].text)]
+            elif tree["connector"] == "!=":
+                data["not_triples"] += [(var, getAxis("type"), tree["left"].text)]
+                data["not_triples"] += [(var, getAxis(tree["connector"]), tree["right"].text)]
+            else:
+                raise Exception("Unrecognised connector " + tree["connector"])
+
+
+        if len(tree["left"].hash)>0:
             if data["hashed"][0] == False:
-                data["hashed"][0] = True
-            data["hashed"].append(exp["left"].text)
+                # if the list previously stored non-hashed variables,
+                # and now is for hashed only, clear out the non-hashed variables
+                del data["hashed"]
+                data["hashed"] = [True]
+            data["hashed"].append(var)
         else:
             if data["hashed"][0] == False:
-                data["hashed"].append(exp["left"].text)
+                data["hashed"].append(var)
         
+    return data
+
+def axisToTriples(axis, data, var_left, var_right):
+
+    if axis == "^":
+        
+        data["varcounter"] += 1
+        parent = data["varcounter"]
+        data["varcounter"] += 1
+        time1 = data["varcounter"]
+        data["varcounter"] += 1
+        time2 = data["varcounter"]
+        data["varcounter"] += 1
+        start1 = data["varcounter"]
+        data["varcounter"] += 1
+        start2 = data["varcounter"]
+        data["varcounter"] += 1
+        end1 = data["varcounter"]
+        data["varcounter"] += 1
+        end2 = data["varcounter"]
+
+        data["triples"] += [(""+str(var_left), "dada:partof", "?var"+str(parent))]
+        data["triples"] += [(""+str(var_right), "dada:partof", "?var"+str(parent))]
+        data["triples"] += [(""+str(var_left), "dada:targets", "?var"+str(time1))]
+        data["triples"] += [(""+str(var_right), "dada:targets", "?var"+str(time2))]
+        data["triples"] += [("?var"+str(time1), "dada:start", "?var"+str(start1))]
+        data["triples"] += [("?var"+str(time2), "dada:start", "?var"+str(start2))]
+        data["triples"] += [("?var"+str(time1), "dada:end", "?var"+str(end1))]
+        data["triples"] += [("?var"+str(time2), "dada:end", "?var"+str(end2))]
+
+        data["extras"] += ["filter( " + "?var"+str(start2) + " >= " + "?var"+str(start1) + ")."]
+        data["extras"] += ["filter( " + "?var"+str(end2) + " <= " + "?var"+str(end1) + ")."]
+
+    elif axis == "->":
+        
+        data["varcounter"] += 1
+        parent = data["varcounter"]
+        data["varcounter"] += 1
+        time1 = data["varcounter"]
+        data["varcounter"] += 1
+        time2 = data["varcounter"]
+        data["varcounter"] += 1
+        end = data["varcounter"]
+        data["varcounter"] += 1
+        start = data["varcounter"]
+
+        data["triples"] += [(""+str(var_left), "dada:partof", "?var"+str(parent))]
+        data["triples"] += [(""+str(var_right), "dada:partof", "?var"+str(parent))]
+        data["triples"] += [(""+str(var_left), "dada:targets", "?var"+str(time1))]
+        data["triples"] += [(""+str(var_right), "dada:targets", "?var"+str(time2))]
+        data["triples"] += [("?var"+str(time1), "dada:end", "?var"+str(end))]
+        data["triples"] += [("?var"+str(time2), "dada:start", "?var"+str(start))]
+
+        data["extras"] += ["filter( " + "?var"+str(end) + " = " + "?var"+str(start) + ")."]
+            
+    else:
+        data["triples"].append((var_left, getAxis(axis), var_right))
+    
     return data
 
 def xtreeToSparql(tree, hashed, varcounter=0):
@@ -209,7 +307,7 @@ def xtreeToSparql(tree, hashed, varcounter=0):
         if len(tree["right"]) > 1:
             #or_group case
             
-            #be caseful of usage here as lists pass by reference
+            #be careful of usage here as lists pass by reference
             var_opts = get_ors(tree.right, [])
 
             varcounter += 1

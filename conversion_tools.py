@@ -1,6 +1,18 @@
 # Created: 27th June 2014
 # conversion_tools.py
 
+from pyparsing import ParseResults
+
+def pretty_print(parsed, indent=0):
+    d = parsed.asDict()
+    for i in d:
+        if type(d[i]) == ParseResults:
+            print '\t'*indent + str(i) + ":"
+            pretty_print(d[i], indent+1)
+        else:
+            print '\t'*indent + str(i) + ":" + str(d[i])
+            
+
 def prettyTriple(s, triple, indent=1):
     if triple[2].startswith("?"):
         s = s + ("\t"*indent) + triple[0] + " " + triple[1] + " " + triple[2] + ".\n"
@@ -12,7 +24,12 @@ def prettyTriple(s, triple, indent=1):
     return s
 
 def convertToSparql(data):
-    s = "select " + data["end_var"]
+    s = "select "
+
+    end_vars = data["end_var"]
+
+    for end_var in end_vars:
+        s = s + end_var + " "
 
     s = s + "\nwhere {\n"
     
@@ -25,8 +42,8 @@ def convertToSparql(data):
         s = s + "\t" + extra + "\n"
     s = s + "}"
 
-    if data.has_key("not_trips"):
-        not_trips = data["not_trips"]
+    if data.has_key("not_triples"):
+        not_trips = data["not_triples"]
         
         if len(not_trips) > 0:
             s = s + "\tFILTER NOT EXISTS {\n"
@@ -35,8 +52,6 @@ def convertToSparql(data):
                 s = prettyTriple(s, not_trip, 2)
                 
             s = s + "\t}\n"
-                
-        s = s + "}\n"
 
     if data.has_key("bindings"):
         bindings = data["bindings"]
