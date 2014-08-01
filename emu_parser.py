@@ -73,7 +73,7 @@ def emuToSparql(emu):
 
     data = treeToSparql(pdict["exp"], data)
 
-    data["end_var"] = data["hashed"][1:]
+    data["end_var"] = set(data["hashed"][1:])
     
     #print data
     s = conversion_tools.convertToSparql(data)
@@ -87,11 +87,16 @@ def treeToSparql(tree, data, var=None):
         left_var = "?var"+str(data["varcounter"])
         data = treeToSparql(tree["left"], data, left_var)
 
-        data["varcounter"] += 1
-        right_var = "?var"+str(data["varcounter"])
+        if tree["connector"] != "&":
+            data["varcounter"] += 1
+            right_var = "?var"+str(data["varcounter"])
+        else:
+            right_var = left_var
+            
         data = treeToSparql(tree["right"], data, right_var)
 
-        axisToTriples(tree["connector"], data, left_var, right_var)
+        if tree["connector"] != "&":
+            axisToTriples(tree["connector"], data, left_var, right_var)
 
     else:
         
@@ -119,15 +124,24 @@ def treeToSparql(tree, data, var=None):
             data["bindings"][var_opt] = var_opts
 
         else:
-            
-            if tree["connector"] == "=":
-                data["triples"] += [(var, getAxis("type"), tree["left"].text)]
-                data["triples"] += [(var, getAxis(tree["connector"]), tree["right"].text)]
-            elif tree["connector"] == "!=":
-                data["not_triples"] += [(var, getAxis("type"), tree["left"].text)]
-                data["not_triples"] += [(var, getAxis(tree["connector"]), tree["right"].text)]
+
+            if tree["right"]["text"].find(":") > -1:
+                if tree["connector"] == "=":
+                    data["triples"] += [(var, tree["left"].text, tree["right"].text)]
+                elif tree["connector"] == "!=":
+                    data["not_triples"] += [(var, tree["left"].text, tree["right"].text)]
+                else:
+                    raise Exception("Unrecognised connector " + tree["connector"])
+
             else:
-                raise Exception("Unrecognised connector " + tree["connector"])
+                if tree["connector"] == "=":
+                    data["triples"] += [(var, getAxis("type"), tree["left"].text)]
+                    data["triples"] += [(var, getAxis(tree["connector"]), tree["right"].text)]
+                elif tree["connector"] == "!=":
+                    data["not_triples"] += [(var, getAxis("type"), tree["left"].text)]
+                    data["not_triples"] += [(var, getAxis(tree["connector"]), tree["right"].text)]
+                else:
+                    raise Exception("Unrecognised connector " + tree["connector"])
 
 
         if len(tree["left"].hash)>0:
@@ -201,136 +215,6 @@ def axisToTriples(axis, data, var_left, var_right):
     
     return data
 
-def xtreeToSparql(tree, hashed, varcounter=0):
-    triples = []
-    #var_opts = []
-    var_opt = None
-    bindings = {}
-    not_triples = []
-    extras = []
-
-    # handling for joined expression
-    if len(tree["left"]) > 2:
-        varcounter += 1
-        var_left = varcounter
-        (trips, hashed, bindings_left, not_trips, extra) = treeToSparql(tree["left"], hashed, var_left)
-        triples += trips
-        not_triples += not_trips
-        extras += extra
-
-        varcounter += 1
-        var_right = varcounter
-        (trips, hashed, bindings_right, not_trips, extra) = treeToSparql(tree["right"], hashed, var_right)
-        triples += trips
-        not_triples += not_trips
-        extras += extra
-
-        bindings = dict(bindings_left.items() + bindings_right.items())
-
-        if tree["connector"] == "&":
-            triples += [("?var"+str(var_left), getAxis(tree["connector"]), "?var"+str(var_right))]
-        elif tree["connector"] == "->":
-            #triples += [("?var"+str(var_right), getAxis(tree["connector"]), "?var"+str(var_left))]
-
-            varcounter += 1
-            parent = varcounter
-            varcounter += 1
-            time1 = varcounter
-            varcounter += 1
-            time2 = varcounter
-            varcounter += 1
-            end = varcounter
-            varcounter += 1
-            start = varcounter
-
-            triples += [("?var"+str(var_left), "dada:partof", "?var"+str(parent))]
-            triples += [("?var"+str(var_right), "dada:partof", "?var"+str(parent))]
-            triples += [("?var"+str(var_left), "dada:targets", "?var"+str(time1))]
-            triples += [("?var"+str(var_right), "dada:targets", "?var"+str(time2))]
-            triples += [("?var"+str(time1), "dada:end", "?var"+str(end))]
-            triples += [("?var"+str(time2), "dada:start", "?var"+str(start))]
-
-            extras += ["filter( " + "?var"+str(end) + " = " + "?var"+str(start) + ")."]
-            
-        elif tree["connector"] == "^":
-            #triples += [("?var"+str(var_left), getAxis(tree["connector"]), "?var"+str(var_right))]
-
-            varcounter += 1
-            parent = varcounter
-            varcounter += 1
-            time1 = varcounter
-            varcounter += 1
-            time2 = varcounter
-            varcounter += 1
-            start1 = varcounter
-            varcounter += 1
-            start2 = varcounter
-            varcounter += 1
-            end1 = varcounter
-            varcounter += 1
-            end2 = varcounter
-
-            triples += [("?var"+str(var_left), "dada:partof", "?var"+str(parent))]
-            triples += [("?var"+str(var_right), "dada:partof", "?var"+str(parent))]
-            triples += [("?var"+str(var_left), "dada:targets", "?var"+str(time1))]
-            triples += [("?var"+str(var_right), "dada:targets", "?var"+str(time2))]
-            triples += [("?var"+str(time1), "dada:start", "?var"+str(start1))]
-            triples += [("?var"+str(time2), "dada:start", "?var"+str(start2))]
-            triples += [("?var"+str(time1), "dada:end", "?var"+str(end1))]
-            triples += [("?var"+str(time2), "dada:end", "?var"+str(end2))]
-
-            extras += ["filter( " + "?var"+str(start2) + " >= " + "?var"+str(start1) + ")."]
-            extras += ["filter( " + "?var"+str(end2) + " <= " + "?var"+str(end1) + ")."]
-        else:
-            raise Exception("Unhandled 2nd level connector " + tree["connector"])
-
-    # handling for basic expression
-    if tree["connector"][-1] == "=":
-        
-        var = "?var"+str(varcounter)
-
-        # in ParseResult, if key doesn't exist, it just returns a blank
-        if tree.left.hash == "#":
-            if hashed[0] == True:
-                hashed.append(var)
-            else:
-                del hashed
-                hashed = [True]
-                hashed.append(var)
-        else:
-            if hashed[0] == False:
-                hashed.append(var)
-
-
-        triples.append((var, getAxis("type"), tree.left.text))
-
-        if len(tree["right"]) > 1:
-            #or_group case
-            
-            #be careful of usage here as lists pass by reference
-            var_opts = get_ors(tree.right, [])
-
-            varcounter += 1
-            var_opt = "?var"+str(varcounter)
-            
-            if tree["connector"] == "=":
-                triples.append((var, getAxis(tree["connector"]), var_opt))
-            elif tree["connector"] == "!=":
-                not_triples.append((var, getAxis(tree["connector"]), var_opt))
-            else:
-                raise Exception("Unrecognised = connector " + tree["connector"])
-                
-            bindings[var_opt] = var_opts
-        else:
-            if tree["connector"] == "=":
-                triples.append((var, getAxis(tree["connector"]), tree.right.text))
-            elif tree["connector"] == "!=":
-                not_triples.append((var, getAxis(tree["connector"]), tree.right.text))
-            else:
-                raise Exception("Unrecognised = connector " + tree["connector"])
-
-    return (triples, hashed, bindings, not_triples, extras)
-
 def getAxis(axis):
     if axis == "->":
         axis_str = "emu:follows"
@@ -360,41 +244,6 @@ def get_ors(tree, ors):
     # this return isn't necessary, since lists pass by reference
     # it is only here for consistency
     return ors
-
-def xemuToSparql(emu):
-    p = parser(emu)
-
-    hashed = [False]
-    (trips, hashed, bindings, not_trips, extras) = treeToSparql(p, hashed)
-
-    s = "select "
-    for var in hashed[1:]:
-        s = s + var + " "
-
-    s = s + "\nwhere {\n"
-    for trip in trips:
-        s = conversion_tools.prettyTriple(s, trip)
-
-    for extra in extras:
-        s = s + "\t" + extra + "\n"
-
-    if len(not_trips) > 0:
-        s = s + "\tFILTER NOT EXISTS {\n"
-
-        for not_trip in not_trips:
-            s = conversion_tools.prettyTriple(s, not_trip, 2)
-            
-        s = s + "\t}\n"
-            
-    s = s + "}\n"
-    
-    for binding in bindings:
-        s = s + "BINDINGS " + binding + " {\n"
-        for var_opt in bindings[binding]:
-            s = s + "\t('"+var_opt+"')\n"
-        s = s + "}"
-
-    return s
 
 def test():
     tests = [

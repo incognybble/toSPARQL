@@ -265,17 +265,8 @@ def test():
 
 def debug(exp):
     p = parser(exp)
-    pretty_print(p)
+    conversion_tools.pretty_print(p)
 
-def pretty_print(parsed, indent=0):
-    
-    d = parsed.asDict()
-    for i in d:
-        if type(d[i]) == ParseResults:
-            print '\t'*indent + str(i) + ":"
-            pretty_print(d[i], indent+1)
-        else:
-            print '\t'*indent + str(i) + ":" + str(d[i])
     
 if __name__ == "__main__":
     #test()
