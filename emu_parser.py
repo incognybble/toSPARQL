@@ -83,8 +83,12 @@ def emuToSparql(emu):
 def treeToSparql(tree, data, var=None):
     
     if len(tree["left"]) > 2:
-        data["varcounter"] += 1
-        left_var = "?var"+str(data["varcounter"])
+        if var == None:
+            data["varcounter"] += 1
+            left_var = "?var"+str(data["varcounter"])
+        else:
+            left_var=var
+            
         data = treeToSparql(tree["left"], data, left_var)
 
         if tree["connector"] != "&":
