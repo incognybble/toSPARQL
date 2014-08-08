@@ -75,10 +75,13 @@ class TestEmuConverter(unittest.TestCase):
     def test_EmuParser(self):
         query = "maus:orthography='time'"
         p = emu_parser.parser(query)
+        p_expected_keys = ['connector', 'left', 'right']
 
         self.assertEqual(type(p), pyparsing.ParseResults)
-
-        
+        self.assertItemsEqual(p['exp'].keys(), p_expected_keys)
+        self.assertEqual(p.exp.left.text, "maus:orthography")
+        self.assertEqual(p.exp.right.text, "time")
+        self.assertEqual(p.exp.connector, "=")
         
         #conversion_tools.pretty_print(p)
     
@@ -227,7 +230,7 @@ class TestEmuConverter(unittest.TestCase):
     def test_EmuSparql7(self):
         """Testing functions"""
 
-        query = "Num(T, U)=1"
+        query = "Num(T,U)=1"
         q = emu_parser.emuToSparql(query)
         
         # sparql
@@ -244,6 +247,45 @@ class TestEmuConverter(unittest.TestCase):
 
         # local
 
+    def test_EmuSparql8(self):
+        """Testing | """
+
+        query = "maus:phonetic='t'|'Ae'"
+        q = emu_parser.emuToSparql(query)
+        
+        # sparql
+        #print q
+        
+        # pyalveo
+        results = pyalveoQuery(q)
+
+        self.assertGreater(len(results), 0)
+
+        for key in results[0]:
+            self.assertRegexpMatches(results[0][key]["value"],
+                                     "http://ns.ausnc.org.au/corpora/mitcheldelbridge/annotation/\d+")
+
+        # local
+
+    def test_EmuSparql9(self):
+        """Testing != """
+
+        query = "maus:phonetic!='t'"
+        q = emu_parser.emuToSparql(query)
+        
+        # sparql
+        #print q
+        
+        # pyalveo
+        results = pyalveoQuery(q)
+
+        self.assertGreater(len(results), 0)
+
+        for key in results[0]:
+            self.assertRegexpMatches(results[0][key]["value"],
+                                     "http://ns.ausnc.org.au/corpora/mitcheldelbridge/annotation/\d+")
+
+        # local
         
 
 if __name__ == "__main__":
