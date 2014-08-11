@@ -9,32 +9,37 @@ import conversion_tools
 
 def parser(text):
     var_any = Literal("_")
-    p = Regex("[\w:]+")#.setResultsName("text")
-    var_any = Regex(".+?")
-    attribute = Literal("@")
-    eq = Literal("=")
-    closure = Literal("?") | Literal("*") | Literal("+")
+    p = Regex("[\w:]+").setResultsName("text")
+    var_any = Regex("_") #handled by p anyway
+    attribute = Literal("@").suppress()
+    eq = Literal("=").suppress()
+    closure = (Literal("?") | Literal("*") | Literal("+")).setResultsName("closure")
 
-    test = Literal("^") + p | p + Literal("$") | p | var_any
-    axis = Literal("\\\\*") | \
-           Literal("\\\\") | \
-           Literal("\\") | \
-           Literal(".") | \
-           Literal("//*") | \
-           Literal("//") | \
-           Literal("/") | \
-           Literal("-->") | \
-           Literal("<--") | \
-           Literal("->") | \
-           Literal("<-") | \
-           Literal("==>") | \
-           Literal("<==") | \
-           Literal("=>") | \
-           Literal("<=")
+    test = Literal("^").setResultsName("modifier") + p | p + Literal("$").setResultsName("modifier") | p #| var_any
+    axis = (Literal("\\\\*") | \
+            Literal("\\\\") | \
+            Literal("\\") | \
+            Literal(".") | \
+            Literal("//*") | \
+            Literal("//") | \
+            Literal("/") | \
+            Literal("-->") | \
+            Literal("<--") | \
+            Literal("->") | \
+            Literal("<-") | \
+            Literal("==>") | \
+            Literal("<==") | \
+            Literal("=>") | \
+            Literal("<=")).setResultsName("connector")
 
+    g_left_brack = Literal("[").suppress()
+    g_right_brack = Literal("]").suppress()
+
+    # working
+    """
     abspath = Forward()
     locstep = Forward()
-
+    
     node = test.setResultsName("node")
     attr_test = Group(attribute.suppress() + node.setResultsName("attr") + eq.suppress() + node.setResultsName("attr_val")).setResultsName("attr_test")
     predicate = (Group(Literal("[").suppress() + attr_test + Literal("]").suppress()).setResultsName("predicate") |\
@@ -43,11 +48,40 @@ def parser(text):
               Optional(predicate + Optional(closure).setResultsName("closure"))).setResultsName("locstep")
 
     abs2 = abspath
-    abspath << (Group(locstep.setResultsName("left_step") + abs2).setResultsName("abspath") | locstep.setResultsName("right_step"))
+    abspath << ( Group(locstep.setResultsName("left_step") + abs2).setResultsName("abspath") | \
+                 locstep.setResultsName("right_step") )
 
     # TODO
     locpath = abspath
-    fexpr = locpath
+    fexpr = locpath.setResultsName("exp")
+    """
+
+    # clean
+    locpath = Forward()
+
+    attr_test = Group(attribute + p.setResultsName("attr") + eq + p.setResultsName("attr_val"))
+
+    fexpr = locpath.setResultsName("exp")
+    
+    # axis as part of nodetest
+    """
+    nodetest = ( Group(axis.setResultsName("connector") + test.setResultsName("text") + g_left_brack + fexpr.setResultsName("predicate") + g_right_brack + Optional(closure)) | \
+                 Group(axis.setResultsName("connector") + test.setResultsName("text") + g_left_brack + attr_test.setResultsName("attr_test") + g_right_brack ) | \
+                 Group(axis.setResultsName("connector") + test.setResultsName("text")))
+    locpath << ( Group(nodetest.setResultsName("left") + fexpr.setResultsName("right")) | \
+                  nodetest)
+    """
+
+    nodetest = ( Group( test + g_left_brack + fexpr.setResultsName("predicate") + g_right_brack + Optional(closure) ) | \
+                 Group( test + g_left_brack + attr_test.setResultsName("attr_test") + g_right_brack ) | \
+                 Group( test)  )
+    locpath << ( Group( axis + nodetest.setResultsName("left") + fexpr.setResultsName("right")) | \
+                 Group( axis + test ) ) 
+
+    # need to separate predicate stuff from nodetest?
+    # predicate is not handled when it is the last entry because locpath refers to test rather than nodetest
+    # but making it nodetest messes up group due to the singular group in nodetest, which is need for the additional text sublevel
+    
     
     return fexpr.parseString(text)
 
