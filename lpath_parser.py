@@ -58,6 +58,7 @@ def parser(text):
 
     # clean
     locpath = Forward()
+    steps = Forward()
 
     attr_test = Group(attribute + p.setResultsName("attr") + eq + p.setResultsName("attr_val"))
 
@@ -73,9 +74,20 @@ def parser(text):
     """
     
     pred_opt = (fexpr.setResultsName("predicate") | attr_test.setResultsName("attr_test"))
+
+    # structure is exactly the same as EmuQL, but the ordering of how connector is handled is different
+    """
     nodetest = Group(test + Optional(g_left_brack + pred_opt + g_right_brack + Optional(closure)))
     locpath << ( Group( axis + nodetest.setResultsName("left") + fexpr.setResultsName("right")) | \
-                 Group( axis + test + Optional(g_left_brack + pred_opt + g_right_brack + Optional(closure))) ) 
+                 Group( axis + test + Optional(g_left_brack + pred_opt + g_right_brack + Optional(closure))) )
+    """
+
+    # connector order handling is the same as EmuQL, but the root lacks a left, as it refers to context node
+    nodetest = Group(test + Optional(g_left_brack + pred_opt + g_right_brack + Optional(closure)))
+    steps << ( Group(nodetest("left") + axis + steps("right")) | \
+               Group(test + Optional(g_left_brack + pred_opt + g_right_brack + Optional(closure))))
+
+    locpath << Group(axis + steps.setResultsName("right"))
     
     return fexpr.parseString(text)
 
@@ -89,13 +101,17 @@ def lpathToSparql(lpath):
     data["varcounter"] = 0
     data["extras"] = []
 
-    data = treeToSparql(pdict, data)
+    data = treeToSparql(pdict["exp"], data)
 
     s = conversion_tools.convertToSparql(data)
     
     return s
 
 def treeToSparql(tree, data, left_step=None):
+
+    pass
+
+def xtreeToSparql(tree, data, left_step=None):
 
     if not tree.has_key("abspath"):
         # edge case, one node only
