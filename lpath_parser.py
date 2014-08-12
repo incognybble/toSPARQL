@@ -71,17 +71,11 @@ def parser(text):
     locpath << ( Group(nodetest.setResultsName("left") + fexpr.setResultsName("right")) | \
                   nodetest)
     """
-
-    nodetest = ( Group( test + g_left_brack + fexpr.setResultsName("predicate") + g_right_brack + Optional(closure) ) | \
-                 Group( test + g_left_brack + attr_test.setResultsName("attr_test") + g_right_brack ) | \
-                 Group( test)  )
-    locpath << ( Group( axis + nodetest.setResultsName("left") + fexpr.setResultsName("right")) | \
-                 Group( axis + test ) ) 
-
-    # need to separate predicate stuff from nodetest?
-    # predicate is not handled when it is the last entry because locpath refers to test rather than nodetest
-    # but making it nodetest messes up group due to the singular group in nodetest, which is need for the additional text sublevel
     
+    pred_opt = (fexpr.setResultsName("predicate") | attr_test.setResultsName("attr_test"))
+    nodetest = Group(test + Optional(g_left_brack + pred_opt + g_right_brack + Optional(closure)))
+    locpath << ( Group( axis + nodetest.setResultsName("left") + fexpr.setResultsName("right")) | \
+                 Group( axis + test + Optional(g_left_brack + pred_opt + g_right_brack + Optional(closure))) ) 
     
     return fexpr.parseString(text)
 
