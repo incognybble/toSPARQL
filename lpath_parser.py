@@ -60,27 +60,10 @@ def parser(text):
     locpath = Forward()
     steps = Forward()
 
-    attr_test = Group(attribute + p.setResultsName("attr") + eq + p.setResultsName("attr_val"))
-
     fexpr = locpath.setResultsName("exp")
-    
-    # axis as part of nodetest
-    """
-    nodetest = ( Group(axis.setResultsName("connector") + test.setResultsName("text") + g_left_brack + fexpr.setResultsName("predicate") + g_right_brack + Optional(closure)) | \
-                 Group(axis.setResultsName("connector") + test.setResultsName("text") + g_left_brack + attr_test.setResultsName("attr_test") + g_right_brack ) | \
-                 Group(axis.setResultsName("connector") + test.setResultsName("text")))
-    locpath << ( Group(nodetest.setResultsName("left") + fexpr.setResultsName("right")) | \
-                  nodetest)
-    """
-    
-    pred_opt = (fexpr.setResultsName("predicate") | attr_test.setResultsName("attr_test"))
 
-    # structure is exactly the same as EmuQL, but the ordering of how connector is handled is different
-    """
-    nodetest = Group(test + Optional(g_left_brack + pred_opt + g_right_brack + Optional(closure)))
-    locpath << ( Group( axis + nodetest.setResultsName("left") + fexpr.setResultsName("right")) | \
-                 Group( axis + test + Optional(g_left_brack + pred_opt + g_right_brack + Optional(closure))) )
-    """
+    attr_test = Group(attribute + p.setResultsName("attr") + eq + p.setResultsName("attr_val"))
+    pred_opt = (fexpr.setResultsName("predicate") | attr_test.setResultsName("attr_test"))
 
     # connector order handling is the same as EmuQL, but the root lacks a left, as it refers to context node
     nodetest = Group(test + Optional(g_left_brack + pred_opt + g_right_brack + Optional(closure)))
@@ -100,8 +83,9 @@ def lpathToSparql(lpath):
     data["triples"] = []
     data["varcounter"] = 0
     data["extras"] = []
+    data["end_var"] = [None]
 
-    data = treeToSparql(pdict["exp"], data)
+    data = treeToSparql(pdict["exp"].asDict(), data)
 
     s = conversion_tools.convertToSparql(data)
     
@@ -109,90 +93,56 @@ def lpathToSparql(lpath):
 
 def treeToSparql(tree, data, left_step=None):
 
-    pass
+    node = tree["right"].asDict()
 
-def xtreeToSparql(tree, data, left_step=None):
+    data["varcounter"] += 1
+    var = "?var"+str(data["varcounter"])
 
-    if not tree.has_key("abspath"):
-        # edge case, one node only
-        locstep = tree["right_step"]["locstep"].asDict()
-        data["varcounter"] += 1
-        var = "?var"+str(data["varcounter"])
+    # if context is available, make sure to connect the current node to it
+    if left_step != None:
+        axisToTriples(tree["connector"], data, left_step, var)
 
-        if left_step != None:
-            #data["triples"].append((left_step, getAxis(locstep["axis"]), var))
-            axisToTriples(locstep["axis"], data, left_step, var)
-            
-        data["triples"].append((var, "dada:label", locstep["node"]))
-        left_step = var
+
+    if node.has_key("text"):
+        # if reached right leaf node
+        # add right leaf
+        data["triples"].append((var, "dada:label", node["text"]))
+
+        # square bracket handling
+        if node.has_key("predicate"):
+            pred = node["predicate"].asDict()
+            data = treeToSparql(pred, data, left_step=var)
+        elif node.has_key("attr_test"):
+            attr = node["attr_test"]["attr"]
+            attr_val = node["attr_test"]["attr_val"]
+            data["triples"].append((var, attr, attr_val))
         
-        if locstep.has_key("predicate"):
-            pred = locstep["predicate"].asDict()
-            if pred.has_key("attr_test"):
-                attr = pred["attr_test"]["attr"]
-                attr_val = pred["attr_test"]["attr_val"]
-
-                data["triples"].append((left_step, attr, attr_val))
-            else:
-                data = treeToSparql(pred, data, left_step=left_step)
-
-        data["end_var"] = var
+        data["end_var"][0] = var
         
     else:
-        abspath = tree["abspath"].asDict()
-        
-        locstep = abspath["left_step"]["locstep"].asDict()
-        data["varcounter"] += 1
-        var = "?var"+str(data["varcounter"])
+        # still recursion to go!
+        # add left leaf
+        left = node["left"].asDict()
+        data["triples"].append((var, "dada:label", left["text"]))
 
-        if left_step != None:
-            #data["triples"].append((left_step, getAxis(locstep["axis"]), var))
-            axisToTriples(locstep["axis"], data, left_step, var)
+        # square bracket handling
+        if left.has_key("predicate"):
+            pred = left["predicate"].asDict()
+            data = treeToSparql(pred, data, left_step=var)
+        elif left.has_key("attr_test"):
+            attr = left["attr_test"]["attr"]
+            attr_val = left["attr_test"]["attr_val"]
+            data["triples"].append((var, attr, attr_val))
 
-        data["triples"].append((var, "dada:label", locstep["node"]))
-        left_step = var
+        # recurse!
+        data = treeToSparql(node, data, left_step=var)
 
-        if locstep.has_key("predicate"):
-            pred = locstep["predicate"].asDict()
-            if pred.has_key("attr_test"):
-                attr = pred["attr_test"]["attr"]
-                attr_val = pred["attr_test"]["attr_val"]
 
-                data["triples"].append((left_step, attr, attr_val))
-            else:
-                data = treeToSparql(pred, data, left_step=left_step)
-
-        data["end_var"] = var
-            
-        if abspath.has_key("right_step"):
-            locstep = abspath["right_step"]["locstep"].asDict()
-            data["varcounter"] += 1
-            var = "?var"+str(data["varcounter"])
-
-            #data["triples"].append((left_step, getAxis(locstep["axis"]), var))
-            axisToTriples(locstep["axis"], data, left_step, var)
-            data["triples"].append((var, "dada:label", locstep["node"]))
-
-            left_step = var
-
-            if locstep.has_key("predicate"):
-                pred = locstep["predicate"].asDict()
-                if pred.has_key("attr_test"):
-                    attr = pred["attr_test"]["attr"]
-                    attr_val = pred["attr_test"]["attr_val"]
-
-                    data["triples"].append((left_step, attr, attr_val))
-                else:
-                    data = treeToSparql(pred, data, left_step=left_step)
-
-            data["end_var"] = var
-            
-        else:
-            data = treeToSparql(abspath, data, left_step=left_step)
-            
     return data
 
+
 def axisToTriples(axis, data, var_left, var_right):
+    #data["triples"].append((var_left, getAxis(axis), var_right))
     
     if axis == "/":
         
@@ -247,7 +197,7 @@ def axisToTriples(axis, data, var_left, var_right):
             
     else:
         data["triples"].append((var_left, getAxis(axis), var_right))
-
+    
     return data
 
 def getAxis(axis):
