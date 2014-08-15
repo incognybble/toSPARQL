@@ -56,7 +56,7 @@ def pyalveoQuery(s):
         PREFIX owl: <http://www.w3.org/2002/07/owl#>
         PREFIX ausnc: <http://ns.ausnc.org.au/schemas/ausnc_md_model/>
         %s
-        #LIMIT 5
+        LIMIT 5
     """%s
     
     client = pyalveo.Client()
@@ -66,6 +66,67 @@ def pyalveoQuery(s):
 
 def clean_whitespace(text):
     return re.sub("\s+", " ", text)
+
+class TestGeneral(unittest.TestCase):
+    def setUp(self):
+        pass
+
+    def test_localQuery(self):
+        # handwritten query
+
+        # EmuQL generated query
+
+        # LPath+ generated query
+        
+        pass
+
+    def test_PyalveoQuery(self):
+        # handwritten query
+        q="""select ?var0
+        where {
+                ?var0 dada:type maus:phonetic.
+                ?var0 dada:label 't'.
+        }"""
+        results = pyalveoQuery(q)
+
+        self.assertGreater(len(results), 0)
+        first_result_hand = results[0]
+        self.assertTrue(first_result_hand.has_key("var0"))
+        self.assertEqual(first_result_hand["var0"]["type"], "uri")
+        self.assertRegexpMatches(first_result_hand["var0"]["value"],
+                                     "http://ns.ausnc.org.au/corpora/mitcheldelbridge/annotation/\d+")
+
+        
+        # EmuQL generated query
+        query = "maus:phonetic='t'"
+        q = emu_parser.emuToSparql(query)
+        results = pyalveoQuery(q)
+
+        self.assertGreater(len(results), 0)
+        first_result_emu = results[0]
+        self.assertGreater(len(first_result_emu.keys()), 0)
+        key = first_result_emu.keys()[0]
+        self.assertEqual(first_result_emu[key]["type"], "uri")
+        self.assertRegexpMatches(first_result_emu[key]["value"],
+                                     "http://ns.ausnc.org.au/corpora/mitcheldelbridge/annotation/\d+")
+
+        self.assertDictContainsSubset(first_result_hand["var0"], first_result_emu[key])
+
+        # LPath+ generated query
+        query = "//t[@dada:type=maus:phonetic]"
+        q = lpath_parser.lpathToSparql(query)
+        results = pyalveoQuery(q)
+
+        self.assertGreater(len(results), 0)
+        first_result_lpath = results[0]
+        self.assertGreater(len(first_result_lpath.keys()), 0)
+        key = first_result_lpath.keys()[0]
+        self.assertEqual(first_result_lpath[key]["type"], "uri")
+        self.assertRegexpMatches(first_result_lpath[key]["value"],
+                                     "http://ns.ausnc.org.au/corpora/mitcheldelbridge/annotation/\d+")
+
+        self.assertDictContainsSubset(first_result_hand["var0"], first_result_lpath[key])
+
 
 class TestEmuConverter(unittest.TestCase):
     """Emu to SPARQL converter"""
@@ -84,14 +145,6 @@ class TestEmuConverter(unittest.TestCase):
         self.assertEqual(p.exp.connector, "=")
         
         #conversion_tools.pretty_print(p)
-    
-    def test_EmuToLocal(self):
-        query = "maus:orthography='time'"
-        q = emu_parser.emuToSparql(query)
-        #result = g.query(q)
-
-        #self.assertGreater(len(results), 0)
-    
 
     def test_EmuToSparql(self):
         """Basic Emu to SPARQL conversion"""
@@ -108,33 +161,33 @@ class TestEmuConverter(unittest.TestCase):
         q_expected = clean_whitespace(q_expected)
         self.assertEqual(q, q_expected)
 
-    def test_EmuToPyalveo(self):
-        """Emu to SPARQL, then query pyalveo"""
-        
-        query = "maus:orthography='time'"
-        q = emu_parser.emuToSparql(query)
-        results = pyalveoQuery(q)
-        self.assertGreater(len(results), 0)
 
     def test_EmuSparql2(self):
         """Testing -> """
 
         query = "[maus:phonetic='t'->maus:phonetic='Ae']"
-        q = emu_parser.emuToSparql(query)
         
-        # sparql
-        #print q
+        # parser
+        p = emu_parser.parser(query)
+        p_expected = {}
+        p_expected["exp"] = {'connector':'->',
+                             'left': {
+                                 'connector':'=',
+                                 'left': 'maus:phonetic',
+                                 'right':"'t'"},
+                             'right': {
+                                 'connector':'=',
+                                 'left': 'maus:phonetic',
+                                 'right':"'Ae'"}}
+
+
+        self.assertItemsEqual(p.asDict(), p_expected)
         
-        # pyalveo
-        results = pyalveoQuery(q)
+        # to sparql
+        sparql = emu_parser.emuToSparql(query)
 
-        self.assertGreater(len(results), 0)
 
-        for key in results[0]:
-            self.assertRegexpMatches(results[0][key]["value"],
-                                     "http://ns.ausnc.org.au/corpora/mitcheldelbridge/annotation/\d+")
-
-        # local
+        #print sparql
 
     def test_EmuSparql3(self):
         """Testing ^ """
@@ -286,7 +339,11 @@ class TestEmuConverter(unittest.TestCase):
                                      "http://ns.ausnc.org.au/corpora/mitcheldelbridge/annotation/\d+")
 
         # local
-        
+
+class TestLPathConverter(unittest.TestCase):
+    """LPath+ to SPARQL converter"""
+    def setUp(self):
+        pass
 
 if __name__ == "__main__":
     #g = get_graph()
