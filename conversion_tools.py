@@ -2,6 +2,7 @@
 # conversion_tools.py
 
 from pyparsing import ParseResults
+import pyalveo
 
 def pretty_print(parsed, indent=0):
     d = parsed.asDict()
@@ -40,7 +41,7 @@ def convertToSparql(data):
     extras = data["extras"]
     for extra in extras:
         s = s + "\t" + extra + "\n"
-    s = s + "}"
+
 
     if data.has_key("not_triples"):
         not_trips = data["not_triples"]
@@ -53,6 +54,8 @@ def convertToSparql(data):
                 
             s = s + "\t}\n"
 
+    s = s + "}"
+
     if data.has_key("bindings"):
         bindings = data["bindings"]
         
@@ -63,3 +66,26 @@ def convertToSparql(data):
             s = s + "}"
 
     return s
+
+
+def pyalveoQuery(s, limit=False):
+    query = """
+        PREFIX rdfs:<http://www.w3.org/2000/01/rdf-schema#>
+        PREFIX xsd:<http://www.w3.org/2001/XMLSchema#>
+        PREFIX rdf:<http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+        PREFIX maus:<http://ns.ausnc.org.au/schemas/annotation/maus/>
+        PREFIX md:<http://ns.ausnc.org.au/schemas/corpora/mitcheldelbridge/items>
+        PREFIX xml:<http://www.w3.org/XML/1998/namespace>
+        PREFIX dada:<http://purl.org/dada/schema/0.2#>
+        PREFIX owl: <http://www.w3.org/2002/07/owl#>
+        PREFIX ausnc: <http://ns.ausnc.org.au/schemas/ausnc_md_model/>
+        %s
+    """%s
+
+    if limit == True:
+        query = query + "\tLIMIT 5"
+    
+    client = pyalveo.Client()
+    results = client.sparql_query("mitcheldelbridge", query)
+    
+    return results["results"]["bindings"]
