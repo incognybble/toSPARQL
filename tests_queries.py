@@ -75,8 +75,97 @@ class TestQueries(unittest.TestCase):
         pass
 
     def test_last(self):
-        pass
-    
+        """Right-most: Find phonetic 't' which are at the end of words"""
+
+        q="""select ?var0 ?text
+        where {
+                ?var0 dada:partof ?parent.
+                ?var2 dada:partof ?parent.
+                
+                ?var0 dada:type maus:phonetic.
+                ?var0 dada:label 't'.
+                
+                ?var2 dada:type maus:orthography.
+                ?var2 dada:label ?text.
+
+                ?var0 dada:targets ?time0.
+                ?time0 dada:end ?end0.
+                
+                ?var2 dada:targets ?time2.
+                ?time2 dada:end ?end0.
+
+        }"""
+        results = conversion_tools.pyalveoQuery(q, limit=True)
+
+        for result in results:
+            print result["text"]["value"]+ ":" + result["var0"]["value"]
+
+    def test_last2(self):
+        """Right-most: Find words which end with phonetic 't'"""
+
+        q="""select ?var2 ?text
+        where {
+                ?var0 dada:partof ?parent.
+                ?var2 dada:partof ?parent.
+                ?var0 dada:type maus:phonetic.
+                ?var0 dada:label 't'.
+                ?var2 dada:type maus:orthography.
+                ?var2 dada:label ?text.
+                ?var0 dada:targets ?time0.
+                ?time0 dada:end ?end.
+                ?var2 dada:targets ?time2.
+                ?time2 dada:end ?end.
+        }"""
+        results = conversion_tools.pyalveoQuery(q, limit=True)
+
+        for result in results:
+            print result["var2"]["value"] + ":" + result["text"]["value"]
+
+    def test_first(self):
+        """Left-most: Find words which start with phonetic 't'"""
+
+        q="""select ?var2 ?text
+        where {
+                ?var0 dada:partof ?parent.
+                ?var2 dada:partof ?parent.
+                ?var0 dada:type maus:phonetic.
+                ?var0 dada:label 't'.
+                ?var2 dada:type maus:orthography.
+                ?var2 dada:label ?text.
+                ?var0 dada:targets ?time0.
+                ?time0 dada:start ?start.
+                ?var2 dada:targets ?time2.
+                ?time2 dada:start ?start.
+        }"""
+        results = conversion_tools.pyalveoQuery(q, limit=True)
+
+        for result in results:
+            print result["var2"]["value"] + ":" + result["text"]["value"]    
+
+    def test_contains(self):
+        """Contains: Find words which contain the phonetic 'r'"""
+
+        q="""select ?var2 ?text
+        where {
+                ?var0 dada:partof ?parent.
+                ?var2 dada:partof ?parent.
+                ?var0 dada:type maus:phonetic.
+                ?var0 dada:label 'r'.
+                ?var2 dada:type maus:orthography.
+                ?var2 dada:label ?text.
+                ?var0 dada:targets ?time0.
+                ?time0 dada:start ?start0.
+                ?time0 dada:end ?end0.
+                ?var2 dada:targets ?time2.
+                ?time2 dada:start ?start2.
+                ?time2 dada:end ?end2.
+                filter (?start0 >= ?start2).
+                filter (?end0 <= ?end2).
+        }"""
+        results = conversion_tools.pyalveoQuery(q, limit=True)
+
+        for result in results:
+            print result["text"]["value"] + ":" + result["var2"]["value"]    
 
 if __name__ == "__main__":
     unittest.main(verbosity=2, exit=False)
