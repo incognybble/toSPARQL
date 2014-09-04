@@ -4,14 +4,34 @@ import unittest
 import re
 import pyparsing
 from datetime import datetime
+import xml
+from SPARQLWrapper import SPARQLWrapper, JSON
 
 import emu_parser
 import lpath_parser
 import conversion_tools
 
 
-def get_files():
-    path = "" # needs data!
+def get_config(filename="config.xml"):
+    dom = xml.dom.minidom.parse(filename)
+    config = dom.getElementsByTagName("config")[0]
+
+    server_text = (config.getElementsByTagName("server")[0]).firstChild.nodeValue
+    db_text = (config.getElementsByTagName("db")[0]).firstChild.nodeValue
+    url_text = (config.getElementsByTagName("url")[0]).firstChild.nodeValue
+    path_text = (config.getElementsByTagName("path")[0]).firstChild.nodeValue
+    location_text = (config.getElementsByTagName("location")[0]).firstChild.nodeValue
+
+    data = {}
+    data["server"] = server_text
+    data["db"] = db_text
+    data["url"] = url_text
+    data["path"] = path_text
+    data["location"] = location_text
+    return data
+
+def get_files(config):
+    path = config["location"]
     total_files = []
     
     files = os.listdir(path)
@@ -26,9 +46,9 @@ def get_files():
 
     return total_files
 
-def get_graph():
+def get_graph(config):
     g = rdflib.graph.Graph()
-    files = get_files()
+    files = get_files(config)
 
     total = float(len(files))
     counter = float(1)
@@ -50,6 +70,7 @@ def clean_whitespace(text):
 class TestGeneral(unittest.TestCase):
     def setUp(self):
         self.start = datetime.now()
+        self.config = get_config()
 
     def tearDown(self):
         self.end = datetime.now()
@@ -60,9 +81,83 @@ class TestGeneral(unittest.TestCase):
 
     def test_localQuery(self):
         """Testing handwritten and generated queries against local data store"""
+        g = get_graph(self.config)
+        
+        # handwritten query
+        q="""select ?var0
+        where {
+                ?var0 dada:type maus:phonetic.
+                ?var0 dada:label 't'.
+        }"""
+        q = conversion_tools.cleanQuery(q, limit=True)
+        results = g.query(q)
+
+        self.assertEqual(len(results), 1)
+        for result in results:
+            first_result_hand = result
+
+        self.assertEqual(type(first_result_hand["var0"]), rdflib.term.URIRef)
+        self.assertRegexpMatches(str(first_result_hand["var0"]),
+                                     "http://ns.ausnc.org.au/corpora/mitcheldelbridge/annotation/\d+")
+
+        
+        # EmuQL generated query
+        query = "maus:phonetic='t'"
+        q = emu_parser.emuToSparql(query)
+        q = conversion_tools.cleanQuery(q, limit=True)
+        results = g.query(q)
+
+        self.assertEqual(len(results), 1)
+        for result in results:
+            first_result_emu = result
+            print first_result_emu
+            
+        self.assertGreater(len(first_result_emu), 0)
+        self.assertEqual(type(first_result_emu["var1"]), rdflib.term.URIRef)
+        self.assertRegexpMatches(str(first_result_emu["var1"]),
+                                     "http://ns.ausnc.org.au/corpora/mitcheldelbridge/annotation/\d+")
+
+        self.assertEqual(first_result_hand["var0"], first_result_emu["var1"])
+
+
+        # LPath+ generated query
+        query = "//t[@dada:type=maus:phonetic]"
+        q = lpath_parser.lpathToSparql(query)
+        q = conversion_tools.cleanQuery(q, limit=True)
+        results = g.query(q)
+
+        #print q
+
+        self.assertEqual(len(results), 1)
+        for result in results:
+            first_result_lpath = result
+            print first_result_lpath
+            
+        self.assertGreater(len(first_result_lpath), 0)
+        self.assertEqual(type(first_result_lpath["var1"]), rdflib.term.URIRef)
+        self.assertRegexpMatches(str(first_result_lpath["var1"]),
+                                     "http://ns.ausnc.org.au/corpora/mitcheldelbridge/annotation/\d+")
+
+        self.assertDictContainsSubset(first_result_hand["var0"], first_result_lpath["var1"])
+
+
+    def test_serverQuery(self):
+        """Testing handwritten and generated queries against own server"""
+        sparql = SPARQLWrapper(self.config["url"])
+
+        
         # handwritten query
 
         # EmuQL generated query
+        query = "maus:phonetic='t'"
+        q = emu_parser.emuToSparql(query)
+        q = conversion_tools.cleanQuery(q, limit=True)
+        sparql.setQuery(q)
+        sparql.setReturnFormat(JSON)
+        results = sparql.query().convert()
+
+        for result in results["results"]["bindings"]:
+            print result["var0"]["value"]
 
         # LPath+ generated query
         
@@ -119,5 +214,4 @@ class TestGeneral(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    #g = get_graph()
     unittest.main(verbosity=2, exit=False)
