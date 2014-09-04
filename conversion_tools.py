@@ -69,6 +69,14 @@ def convertToSparql(data):
 
 
 def pyalveoQuery(s, limit=False):
+    query = cleanQuery(s, limit)
+    
+    client = pyalveo.Client()
+    results = client.sparql_query("mitcheldelbridge", query)
+    
+    return results["results"]["bindings"]
+
+def cleanQuery(s, limit=False):
     query = """
         PREFIX rdfs:<http://www.w3.org/2000/01/rdf-schema#>
         PREFIX xsd:<http://www.w3.org/2001/XMLSchema#>
@@ -83,9 +91,6 @@ def pyalveoQuery(s, limit=False):
     """%s
 
     if limit == True:
-        query = query + "\tLIMIT 5"
+        query = query + "\tLIMIT 1"
     
-    client = pyalveo.Client()
-    results = client.sparql_query("mitcheldelbridge", query)
-    
-    return results["results"]["bindings"]
+    return query
