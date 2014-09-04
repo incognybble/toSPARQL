@@ -110,7 +110,7 @@ class TestGeneral(unittest.TestCase):
         self.assertEqual(len(results), 1)
         for result in results:
             first_result_emu = result
-            print first_result_emu
+            #print first_result_emu
             
         self.assertGreater(len(first_result_emu), 0)
         self.assertEqual(type(first_result_emu["var1"]), rdflib.term.URIRef)
@@ -131,14 +131,14 @@ class TestGeneral(unittest.TestCase):
         self.assertEqual(len(results), 1)
         for result in results:
             first_result_lpath = result
-            print first_result_lpath
+            #print first_result_lpath
             
         self.assertGreater(len(first_result_lpath), 0)
         self.assertEqual(type(first_result_lpath["var1"]), rdflib.term.URIRef)
         self.assertRegexpMatches(str(first_result_lpath["var1"]),
                                      "http://ns.ausnc.org.au/corpora/mitcheldelbridge/annotation/\d+")
 
-        self.assertDictContainsSubset(first_result_hand["var0"], first_result_lpath["var1"])
+        self.assertEqual(first_result_hand["var0"], first_result_lpath["var1"])
 
 
     def test_serverQuery(self):
@@ -147,6 +147,22 @@ class TestGeneral(unittest.TestCase):
 
         
         # handwritten query
+        q="""select ?var0
+        where {
+                ?var0 dada:type maus:phonetic.
+                ?var0 dada:label 't'.
+        }"""
+        q = conversion_tools.cleanQuery(q, limit=True)
+        sparql.setQuery(q)
+        sparql.setReturnFormat(JSON)
+        results = sparql.query().convert()
+
+        for result in results["results"]["bindings"]:
+            first_result_hand = result["var0"]["value"]
+
+        self.assertRegexpMatches(str(first_result_hand),
+                                     "http://ns.ausnc.org.au/corpora/mitcheldelbridge/annotation/\d+")
+
 
         # EmuQL generated query
         query = "maus:phonetic='t'"
@@ -157,11 +173,30 @@ class TestGeneral(unittest.TestCase):
         results = sparql.query().convert()
 
         for result in results["results"]["bindings"]:
-            print result["var0"]["value"]
+            first_result_emu = result["var1"]["value"]
+
+        self.assertRegexpMatches(str(first_result_emu),
+                                     "http://ns.ausnc.org.au/corpora/mitcheldelbridge/annotation/\d+")
+
+        self.assertEqual(first_result_hand, first_result_emu)
+
 
         # LPath+ generated query
-        
-        pass
+        query = "//t[@dada:type=maus:phonetic]"
+        q = lpath_parser.lpathToSparql(query)
+        q = conversion_tools.cleanQuery(q, limit=True)
+        sparql.setQuery(q)
+        sparql.setReturnFormat(JSON)
+        results = sparql.query().convert()
+
+        for result in results["results"]["bindings"]:
+            first_result_lpath = result["var1"]["value"]
+
+        self.assertRegexpMatches(str(first_result_lpath),
+                                     "http://ns.ausnc.org.au/corpora/mitcheldelbridge/annotation/\d+")
+
+        self.assertEqual(first_result_hand, first_result_lpath)
+
 
     def test_PyalveoQuery(self):
         """Testing handwritten and generated queries against pyalveo"""
