@@ -122,14 +122,14 @@ class TestQueries(unittest.TestCase):
             print result["var2"]["value"] + ":" + result["text"]["value"]
 
     def test_first(self):
-        """Left-most: Find words which start with phonetic 't'"""
+        """Left-most: Find words which start with phonetic 's'"""
 
         q="""select ?var2 ?text
         where {
                 ?var0 dada:partof ?parent.
                 ?var2 dada:partof ?parent.
                 ?var0 dada:type maus:phonetic.
-                ?var0 dada:label 't'.
+                ?var0 dada:label 's'.
                 ?var2 dada:type maus:orthography.
                 ?var2 dada:label ?text.
                 ?var0 dada:targets ?time0.
@@ -164,8 +164,43 @@ class TestQueries(unittest.TestCase):
         }"""
         results = conversion_tools.pyalveoQuery(q, limit=True)
 
+        #for result in results:
+        #    print result["text"]["value"] + ":" + result["var2"]["value"]
+
+        hand_res = results[0]
+
+        # EmuQL
+        query = "[#maus:orthography!='x'^maus:phonetic='r']"
+        q = emu_parser.emuToSparql(query)
+        results = conversion_tools.pyalveoQuery(q, limit=True)
+        emu_res = results[0]
+
+        self.assertEqual(hand_res["var2"]["value"], emu_res["var1"]["value"])
+        
+        # LPath+
+        query = "//_[@dada:type=maus:orthography][r[@dada:type=maus:phonetic]]"
+        q = lpath_parser.lpathToSparql(query)
+        results = conversion_tools.pyalveoQuery(q, limit=True)
+        lpath_res = results
+
+        #self.assertEqual(lpath_res["var2"]["value"], emu_res["var2"]["value"])
+
+        print q
+
+    def test_followedby(self):
+        """Followedby"""
+
+        q="""select ?var0 ?text0 ?var1 ?text1
+        where {
+                ?var0 dada:followedby ?var1.
+                ?var0 dada:label ?text0.
+                ?var1 dada:label ?text1.
+        }"""
+        results = conversion_tools.pyalveoQuery(q, limit=True)
+        print results
+
         for result in results:
-            print result["text"]["value"] + ":" + result["var2"]["value"]    
+            print result["var0"]["value"] + ":" + result["text0"]["value"] 
 
 if __name__ == "__main__":
     unittest.main(verbosity=2, exit=False)
