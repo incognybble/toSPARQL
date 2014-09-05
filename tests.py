@@ -4,31 +4,13 @@ import unittest
 import re
 import pyparsing
 from datetime import datetime
-import xml
-from SPARQLWrapper import SPARQLWrapper, JSON
+
 
 import emu_parser
 import lpath_parser
 import conversion_tools
 
 
-def get_config(filename="config.xml"):
-    dom = xml.dom.minidom.parse(filename)
-    config = dom.getElementsByTagName("config")[0]
-
-    server_text = (config.getElementsByTagName("server")[0]).firstChild.nodeValue
-    db_text = (config.getElementsByTagName("db")[0]).firstChild.nodeValue
-    url_text = (config.getElementsByTagName("url")[0]).firstChild.nodeValue
-    path_text = (config.getElementsByTagName("path")[0]).firstChild.nodeValue
-    location_text = (config.getElementsByTagName("location")[0]).firstChild.nodeValue
-
-    data = {}
-    data["server"] = server_text
-    data["db"] = db_text
-    data["url"] = url_text
-    data["path"] = path_text
-    data["location"] = location_text
-    return data
 
 def get_files(config):
     path = config["location"]
@@ -70,7 +52,7 @@ def clean_whitespace(text):
 class TestGeneral(unittest.TestCase):
     def setUp(self):
         self.start = datetime.now()
-        self.config = get_config()
+        self.config = conversion_tools.get_config()
 
     def tearDown(self):
         self.end = datetime.now()
@@ -143,59 +125,57 @@ class TestGeneral(unittest.TestCase):
 
     def test_serverQuery(self):
         """Testing handwritten and generated queries against own server"""
-        sparql = SPARQLWrapper(self.config["url"])
 
-        
         # handwritten query
         q="""select ?var0
         where {
                 ?var0 dada:type maus:phonetic.
                 ?var0 dada:label 't'.
         }"""
-        q = conversion_tools.cleanQuery(q, limit=True)
-        sparql.setQuery(q)
-        sparql.setReturnFormat(JSON)
-        results = sparql.query().convert()
 
-        for result in results["results"]["bindings"]:
-            first_result_hand = result["var0"]["value"]
+        results = conversion_tools.serverQuery(q, True, self.config)
 
-        self.assertRegexpMatches(str(first_result_hand),
+        self.assertGreater(len(results), 0)
+        first_result_hand = results[0]
+        self.assertTrue(first_result_hand.has_key("var0"))
+        self.assertEqual(first_result_hand["var0"]["type"], "uri")
+        self.assertRegexpMatches(first_result_hand["var0"]["value"],
                                      "http://ns.ausnc.org.au/corpora/mitcheldelbridge/annotation/\d+")
 
 
         # EmuQL generated query
         query = "maus:phonetic='t'"
         q = emu_parser.emuToSparql(query)
-        q = conversion_tools.cleanQuery(q, limit=True)
-        sparql.setQuery(q)
-        sparql.setReturnFormat(JSON)
-        results = sparql.query().convert()
 
-        for result in results["results"]["bindings"]:
-            first_result_emu = result["var1"]["value"]
+        results = conversion_tools.serverQuery(q, True, self.config)
 
-        self.assertRegexpMatches(str(first_result_emu),
+        self.assertGreater(len(results), 0)
+        first_result_emu = results[0]
+        self.assertGreater(len(first_result_emu.keys()), 0)
+        key = first_result_emu.keys()[0]
+        self.assertEqual(first_result_emu[key]["type"], "uri")
+        self.assertRegexpMatches(first_result_emu[key]["value"],
                                      "http://ns.ausnc.org.au/corpora/mitcheldelbridge/annotation/\d+")
 
-        self.assertEqual(first_result_hand, first_result_emu)
+        self.assertDictContainsSubset(first_result_hand["var0"], first_result_emu[key])
 
 
         # LPath+ generated query
         query = "//t[@dada:type=maus:phonetic]"
         q = lpath_parser.lpathToSparql(query)
-        q = conversion_tools.cleanQuery(q, limit=True)
-        sparql.setQuery(q)
-        sparql.setReturnFormat(JSON)
-        results = sparql.query().convert()
 
-        for result in results["results"]["bindings"]:
-            first_result_lpath = result["var1"]["value"]
+        results = conversion_tools.serverQuery(q, True, self.config)
 
-        self.assertRegexpMatches(str(first_result_lpath),
+        self.assertGreater(len(results), 0)
+        first_result_lpath = results[0]
+        self.assertGreater(len(first_result_lpath.keys()), 0)
+        key = first_result_lpath.keys()[0]
+        self.assertEqual(first_result_lpath[key]["type"], "uri")
+        self.assertRegexpMatches(first_result_lpath[key]["value"],
                                      "http://ns.ausnc.org.au/corpora/mitcheldelbridge/annotation/\d+")
 
-        self.assertEqual(first_result_hand, first_result_lpath)
+        self.assertDictContainsSubset(first_result_hand["var0"], first_result_lpath[key])
+
 
 
     def test_PyalveoQuery(self):

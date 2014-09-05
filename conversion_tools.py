@@ -1,8 +1,12 @@
 # Created: 27th June 2014
 # conversion_tools.py
 
+from SPARQLWrapper import SPARQLWrapper, JSON
+import xml
+
 from pyparsing import ParseResults
 import pyalveo
+
 
 def pretty_print(parsed, indent=0):
     d = parsed.asDict()
@@ -94,3 +98,39 @@ def cleanQuery(s, limit=False):
         query = query + "\tLIMIT 1"
     
     return query
+
+
+def get_config(filename="config.xml"):
+    dom = xml.dom.minidom.parse(filename)
+    config = dom.getElementsByTagName("config")[0]
+
+    server_text = (config.getElementsByTagName("server")[0]).firstChild.nodeValue
+    db_text = (config.getElementsByTagName("db")[0]).firstChild.nodeValue
+    url_text = (config.getElementsByTagName("url")[0]).firstChild.nodeValue
+    path_text = (config.getElementsByTagName("path")[0]).firstChild.nodeValue
+    location_text = (config.getElementsByTagName("location")[0]).firstChild.nodeValue
+
+    data = {}
+    data["server"] = server_text
+    data["db"] = db_text
+    data["url"] = url_text
+    data["path"] = path_text
+    data["location"] = location_text
+    return data
+
+
+def serverQuery(s, limit=False, config=None):
+    query = cleanQuery(s, limit)
+
+    if config == None:
+        conf = get_config()
+    else:
+        conf = config
+        
+    sparql = SPARQLWrapper(conf["url"])
+
+    sparql.setQuery(query)
+    sparql.setReturnFormat(JSON)
+    results = sparql.query().convert()
+    
+    return results["results"]["bindings"]
