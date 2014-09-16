@@ -106,7 +106,8 @@ def treeToSparql(tree, data, left_step=None):
     if node.has_key("text"):
         # if reached right leaf node
         # add right leaf
-        data["triples"].append((var, "dada:label", node["text"]))
+        if node["text"] != "_":
+            data["triples"].append((var, "dada:label", node["text"]))
 
         # square bracket handling
         if node.has_key("predicate"):
@@ -123,7 +124,8 @@ def treeToSparql(tree, data, left_step=None):
         # still recursion to go!
         # add left leaf
         left = node["left"].asDict()
-        data["triples"].append((var, "dada:label", left["text"]))
+        if left["text"] != "_":
+            data["triples"].append((var, "dada:label", left["text"]))
 
         # square bracket handling
         if left.has_key("predicate"):
