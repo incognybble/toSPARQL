@@ -178,26 +178,29 @@ class TestQueries(unittest.TestCase):
         self.assertEqual(hand_res["var2"]["value"], emu_res["var1"]["value"])
         
         # LPath+
-        query = "//_[@dada:type=maus:orthography][r[@dada:type=maus:phonetic]]"
+        #query = "//_[@dada:type=maus:orthography][/r[@dada:type=maus:phonetic]]"
+        query = "//_[/r[@dada:type=maus:phonetic]]"
         q = lpath_parser.lpathToSparql(query)
         results = conversion_tools.pyalveoQuery(q, limit=True)
-        lpath_res = results
+        lpath_res = results[0]
 
-        self.assertEqual(lpath_res["var2"]["value"], emu_res["var2"]["value"])
+        self.assertEqual(lpath_res["var1"]["value"], emu_res["var1"]["value"])
 
-        #print q
+        
 
     def test_followedby(self):
         """Followedby: Find sounds which are followed by 'r' i.e. immediate siblings"""
 
         q="""select ?var0 ?text0
         where {
-                ?var0 dada:followedby 'r'.
+                ?var0 dada:followedby ?var1.
                 ?var0 dada:type maus:phonetic.
                 ?var0 dada:label ?text0.
+                ?var1 dada:type maus:phonetic.
+                ?var1 dada:label 'r'.
         }"""
-        results = conversion_tools.pyalveoQuery(q, limit=True)
-
+        results = conversion_tools.serverQuery(q, limit=True)
+        
         hand_short_res = results[0]
 
 
@@ -213,7 +216,7 @@ class TestQueries(unittest.TestCase):
                         ?var2 dada:label 'r'.
                         ?var0 dada:type maus:phonetic.
         }"""
-        results = conversion_tools.pyalveoQuery(q, limit=True)
+        results = conversion_tools.serverQuery(q, limit=True)
 
         hand_long_res = results[0]
         
@@ -223,20 +226,22 @@ class TestQueries(unittest.TestCase):
         # EmuQL
         query = "[#maus:phonetic!='_'->maus:phonetic='r']"
         q = emu_parser.emuToSparql(query)
-        results = conversion_tools.pyalveoQuery(q, limit=True)
+        results = conversion_tools.serverQuery(q, limit=True)
         emu_res = results[0]
 
         self.assertEqual(hand_short_res["var0"]["value"], emu_res["var1"]["value"])
         
         # LPath+
-        query = "//_[@dada:type=maus:phonetic][->r[@dada:type=maus:phonetic]]"
+        #query = "//_[@dada:type=maus:phonetic]->r[@dada:type=maus:phonetic]"
+        query = "//_[->r[@dada:type=maus:phonetic]]"
         q = lpath_parser.lpathToSparql(query)
-        results = conversion_tools.pyalveoQuery(q, limit=True)
-        lpath_res = results
+        results = conversion_tools.serverQuery(q, limit=True)
+        lpath_res = results[0]
 
-        self.assertEqual(hand_short_res["var0"]["value"], lpath_res["var2"]["value"])
+        print q
+        print lpath_res
 
-        #print q
+        self.assertEqual(hand_short_res["var0"]["value"], lpath_res["var1"]["value"])
 
 
 if __name__ == "__main__":

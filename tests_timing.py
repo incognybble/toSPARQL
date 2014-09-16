@@ -17,22 +17,22 @@ class TestTiming(unittest.TestCase):
     def test_basic_emu(self):
         query = "maus:phonetic='t'"
         q = emu_parser.emuToSparql(query)
-        results = conversion_tools.pyalveoQuery(q, limit=False)
+        results = conversion_tools.serverQuery(q, limit=False)
 
     def test_basic_lpath(self):
         query = "//t[@dada:type=maus:phonetic]"
         q = lpath_parser.lpathToSparql(query)
-        results = conversion_tools.pyalveoQuery(q, limit=False)
+        results = conversion_tools.serverQuery(q, limit=False)
 
     def test_sequence_emu(self):
         query = "[maus:phonetic='t'->#maus:phonetic='Ae']"
         q = emu_parser.emuToSparql(query)
-        results = conversion_tools.pyalveoQuery(q, limit=False)
+        results = conversion_tools.serverQuery(q, limit=False)
 
     def test_sequence_lpath(self):
         query = "//t[@dada:type=maus:phonetic]->Ae[@dada:type=maus:phonetic]"
         q = lpath_parser.lpathToSparql(query)
-        results = conversion_tools.pyalveoQuery(q, limit=False)
+        results = conversion_tools.serverQuery(q, limit=False)
 
     def test_dominance_direct(self):
         q="""select ?var1
@@ -43,7 +43,7 @@ class TestTiming(unittest.TestCase):
                 ?var1 dada:type maus:phonetic.
                 ?var1 dada:label 'Ae'.
         }"""
-        results = conversion_tools.pyalveoQuery(q, limit=False)
+        results = conversion_tools.serverQuery(q, limit=False)
 
     def test_dominance_indirect(self):
         q="""select ?var0
@@ -63,36 +63,38 @@ class TestTiming(unittest.TestCase):
                 filter (?start0 >= ?start2).
                 filter (?end0 <= ?end2).
         }"""
-        results = conversion_tools.pyalveoQuery(q, limit=False)
+        results = conversion_tools.serverQuery(q, limit=False)
 
     def test_dominance_emu(self):
         query = "[maus:orthography='time'^#maus:phonetic='Ae']"
         q = emu_parser.emuToSparql(query)
-        results = conversion_tools.pyalveoQuery(q, limit=False)
+        results = conversion_tools.serverQuery(q, limit=False)
 
     def test_dominance_lpath(self):
         query = "//time[@dada:type=maus:orthography]/Ae[@dada:type=maus:phonetic]"
         q = lpath_parser.lpathToSparql(query)
-        results = conversion_tools.pyalveoQuery(q, limit=False)
+        results = conversion_tools.serverQuery(q, limit=False)
 
     def test_contains_emu(self):
         query = "[#maus:orthography!='x'^maus:phonetic='r']"
         q = emu_parser.emuToSparql(query)
-        results = conversion_tools.pyalveoQuery(q, limit=False)
+        results = conversion_tools.serverQuery(q, limit=False)
 
     def test_contains_lpath(self):
-        query = "//_[@dada:type=maus:orthography][r[@dada:type=maus:phonetic]]"
+        query = "//_[/r[@dada:type=maus:phonetic]]"
         q = lpath_parser.lpathToSparql(query)
-        results = conversion_tools.pyalveoQuery(q, limit=False)
+        results = conversion_tools.serverQuery(q, limit=False)
 
     def test_followedby_direct(self):
         q="""select ?var0 ?text0
         where {
-                ?var0 dada:followedby 'r'.
+                ?var0 dada:followedby ?var1.
                 ?var0 dada:type maus:phonetic.
                 ?var0 dada:label ?text0.
+                ?var1 dada:type maus:phonetic.
+                ?var1 dada:label 'r'.
         }"""
-        results = conversion_tools.pyalveoQuery(q, limit=False)
+        results = conversion_tools.serverQuery(q, limit=False)
 
     def test_followedby_indirect(self):
         q="""select ?var0 ?text0
@@ -107,17 +109,17 @@ class TestTiming(unittest.TestCase):
                         ?var2 dada:label 'r'.
                         ?var0 dada:type maus:phonetic.
         }"""
-        results = conversion_tools.pyalveoQuery(q, limit=False)
+        results = conversion_tools.serverQuery(q, limit=False)
 
     def test_followedby_emu(self):
         query = "[#maus:phonetic!='_'->maus:phonetic='r']"
         q = emu_parser.emuToSparql(query)
-        results = conversion_tools.pyalveoQuery(q, limit=False)
+        results = conversion_tools.serverQuery(q, limit=False)
 
     def test_followedby_lpath(self):
-        query = "//_[@dada:type=maus:phonetic][->r[@dada:type=maus:phonetic]]"
+        query = "//_[->r[@dada:type=maus:phonetic]]"
         q = lpath_parser.lpathToSparql(query)
-        results = conversion_tools.pyalveoQuery(q, limit=False)
+        results = conversion_tools.serverQuery(q, limit=False)
 
 
 if __name__ == "__main__":
