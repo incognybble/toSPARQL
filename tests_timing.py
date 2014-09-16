@@ -34,6 +34,37 @@ class TestTiming(unittest.TestCase):
         q = lpath_parser.lpathToSparql(query)
         results = conversion_tools.pyalveoQuery(q, limit=False)
 
+    def test_dominance_direct(self):
+        q="""select ?var1
+        where {
+                ?var0 dada:hasChild ?var1.
+                ?var0 dada:type maus:orthography.
+                ?var0 dada:label 'time'.
+                ?var1 dada:type maus:phonetic.
+                ?var1 dada:label 'Ae'.
+        }"""
+        results = conversion_tools.pyalveoQuery(q, limit=False)
+
+    def test_dominance_indirect(self):
+        q="""select ?var0
+        where {
+                ?var0 dada:partof ?parent.
+                ?var2 dada:partof ?parent.
+                ?var0 dada:type maus:phonetic.
+                ?var0 dada:label 'Ae'.
+                ?var2 dada:type maus:orthography.
+                ?var2 dada:label 'time'.
+                ?var0 dada:targets ?time0.
+                ?time0 dada:start ?start0.
+                ?time0 dada:end ?end0.
+                ?var2 dada:targets ?time2.
+                ?time2 dada:start ?start2.
+                ?time2 dada:end ?end2.
+                filter (?start0 >= ?start2).
+                filter (?end0 <= ?end2).
+        }"""
+        results = conversion_tools.pyalveoQuery(q, limit=False)
+
     def test_dominance_emu(self):
         query = "[maus:orthography='time'^#maus:phonetic='Ae']"
         q = emu_parser.emuToSparql(query)
