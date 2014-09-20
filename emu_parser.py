@@ -142,7 +142,9 @@ def treeToSparql(tree, data, var=None):
                     data["triples"] += [(var, getAxis("type"), tree["left"].text)]
                     data["triples"] += [(var, getAxis(tree["connector"]), tree["right"].text)]
                 elif tree["connector"] == "!=":
-                    data["not_triples"] += [(var, getAxis("type"), tree["left"].text)]
+                    # it's still of this type
+                    data["triples"] += [(var, getAxis("type"), tree["left"].text)]
+                    # just not of this value
                     data["not_triples"] += [(var, getAxis(tree["connector"]), tree["right"].text)]
                 else:
                     raise Exception("Unrecognised connector " + tree["connector"])
