@@ -2,11 +2,15 @@
 # conversion_tools.py
 
 from SPARQLWrapper import SPARQLWrapper, JSON
-import xml
+import xml.dom.minidom
+from datetime import datetime
+import re
 
 from pyparsing import ParseResults
 import pyalveo
 
+def clean_whitespace(text):
+    return re.sub("\s+", " ", text)
 
 def pretty_print(parsed, indent=0):
     d = parsed.asDict()
@@ -101,14 +105,16 @@ def cleanQuery(s, limit=False):
 
 
 def get_config(filename="config.xml"):
-    dom = xml.dom.minidom.parse(filename)
-    config = dom.getElementsByTagName("config")[0]
+    xdm = xml.dom.minidom.parse(filename)
+    config = xdm.getElementsByTagName("config")[0]
 
     server_text = (config.getElementsByTagName("server")[0]).firstChild.nodeValue
     db_text = (config.getElementsByTagName("db")[0]).firstChild.nodeValue
     url_text = (config.getElementsByTagName("url")[0]).firstChild.nodeValue
     path_text = (config.getElementsByTagName("path")[0]).firstChild.nodeValue
     location_text = (config.getElementsByTagName("location")[0]).firstChild.nodeValue
+    url_execute_text = (config.getElementsByTagName("url_execute")[0]).firstChild.nodeValue
+
 
     data = {}
     data["server"] = server_text
@@ -116,10 +122,11 @@ def get_config(filename="config.xml"):
     data["url"] = url_text
     data["path"] = path_text
     data["location"] = location_text
+    data["url_execute"] = url_execute_text
     return data
 
 
-def serverQuery(s, limit=False, config=None):
+def serverQuery(s, limit=False, config=None, timing=False):
     query = cleanQuery(s, limit)
 
     if config == None:
@@ -129,8 +136,34 @@ def serverQuery(s, limit=False, config=None):
         
     sparql = SPARQLWrapper(conf["url"])
 
+    start = None
+    end = None
+    if timing == True:
+        start = datetime.now()
+
     sparql.setQuery(query)
     sparql.setReturnFormat(JSON)
     results = sparql.query().convert()
+
+    if timing == True:
+        end = datetime.now()
+        runtime = end-start
+        print runtime
     
     return results["results"]["bindings"]
+
+def serverExecute(s, config=None):
+    query = cleanQuery(s)
+
+    if config == None:
+        conf = get_config()
+    else:
+        conf = config
+        
+    sparql = SPARQLWrapper(conf["url_execute"])
+
+    sparql.setQuery(query)
+    sparql.method = 'POST'
+    results = sparql.query()
+    
+    return results
