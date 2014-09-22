@@ -77,7 +77,7 @@ class TestTiming(unittest.TestCase):
         q = lpath_parser.lpathToSparql(query)
         results = conversion_tools.serverQuery(q, limit=False, timing=True)
 
-    def test_dominance_direct_bad(self):
+    def test_empty_direct(self):
         q="""select ?var1
         where {
                 ?var0 dada:hasChild ?var1.
@@ -88,7 +88,7 @@ class TestTiming(unittest.TestCase):
         }"""
         results = conversion_tools.serverQuery(q, limit=False, timing=True)
 
-    def test_dominance_indirect_bad(self):
+    def test_empty_indirect(self):
         q="""select ?var0
         where {
                 ?var0 dada:partof ?parent.
@@ -108,23 +108,13 @@ class TestTiming(unittest.TestCase):
         }"""
         results = conversion_tools.serverQuery(q, limit=False, timing=True)
         
-    def test_dominance_emu_bad(self):
+    def test_empty_emu(self):
         query = "[maus:orthography='time'^#maus:phonetic='r']"
         q = emu_parser.emuToSparql(query)
         results = conversion_tools.serverQuery(q, limit=False, timing=True)
 
-    def test_dominance_lpath_bad(self):
+    def test_empty_lpath(self):
         query = "//time[@dada:type=maus:orthography]/r[@dada:type=maus:phonetic]"
-        q = lpath_parser.lpathToSparql(query)
-        results = conversion_tools.serverQuery(q, limit=False, timing=True)
-
-    def test_contains_emu(self):
-        query = "[#maus:orthography!='_'^maus:phonetic='r']"
-        q = emu_parser.emuToSparql(query)
-        results = conversion_tools.serverQuery(q, limit=False, timing=True)
-
-    def test_contains_lpath(self):
-        query = "//_[/r[@dada:type=maus:phonetic]]"
         q = lpath_parser.lpathToSparql(query)
         results = conversion_tools.serverQuery(q, limit=False, timing=True)
 
@@ -173,6 +163,58 @@ class TestTiming(unittest.TestCase):
         query = "//_[not @dada:label='time']"
         q = lpath_parser.lpathToSparql(query)
         results = conversion_tools.serverQuery(q, limit=False, timing=True)
+
+    def test_sibling_direct(self):
+        q="""select ?text1 ?text2 ?var1 ?var2
+        where {
+                ?var0 dada:hasChild ?var1.
+                ?var0 dada:hasChild ?var2.
+                ?var1 dada:followedby ?va2.
+                ?var0 dada:type maus:orthography.
+                ?var0 dada:label 'time'.
+                ?var1 dada:type maus:phonetic.
+                ?var1 dada:label ?text1.
+                ?var2 dada:type maus:phonetic.
+                ?var2 dada:label ?text2.
+        }"""
+        results = conversion_tools.serverQuery(q, limit=False, timing=True)
         
+    def test_sibling_indirect(self):
+        q="""select ?text1 ?text2 ?var1 ?var2
+        where {
+                ?var0 dada:partof ?parent.
+                ?var1 dada:partof ?parent.
+                ?var2 dada:partof ?parent.
+                ?var0 dada:type maus:orthography.
+                ?var0 dada:label 'time'.
+                ?var1 dada:type maus:phonetic.
+                ?var1 dada:label ?text1.
+                ?var2 dada:type maus:phonetic.
+                ?var2 dada:label ?text2.
+                ?var0 dada:targets ?time0.
+                ?time0 dada:start ?start0.
+                ?time0 dada:end ?end0.
+                ?var1 dada:targets ?time1.
+                ?time1 dada:start ?start1.
+                ?time1 dada:end ?end1.
+                ?var2 dada:targets ?time2.
+                ?time2 dada:start ?end1.
+                ?time2 dada:end ?end2.
+                filter (?start1 >= ?start0).
+                filter (?end2 <= ?end0).
+        }"""
+        results = conversion_tools.serverQuery(q, limit=False, timing=True)
+        
+    def test_sibling_emu(self):
+        query = "[maus:orthography='time'^[maus:phonetic!='_'->#maus:phonetic!='_']]"
+        q = emu_parser.emuToSparql(query)
+        results = conversion_tools.serverQuery(q, limit=False, timing=True)
+
+    def test_sibling_lpath(self):
+        query = "//time[@dada:type=maus:orthography]/_[@dada:type=maus:phonetic]->_[@dada:type=maus:phonetic]"
+        q = lpath_parser.lpathToSparql(query)
+        results = conversion_tools.serverQuery(q, limit=False, timing=True)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2, exit=False)

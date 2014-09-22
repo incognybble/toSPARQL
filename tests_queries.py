@@ -51,7 +51,7 @@ class TestQueries(unittest.TestCase):
 
     def test_dominance(self):
         """Dominance: Find a phonetic 'Ae' dominated by orthography 'time'.
-        Same as a parent/child relationship."""
+        Same as a parent/child relationship. Same as 'contains' concept."""
 
         # sparql direct
         q="""select ?var1
@@ -178,55 +178,10 @@ class TestQueries(unittest.TestCase):
 
         for result in results:
             print result["var2"]["value"] + ":" + result["text"]["value"]    
-
-    def test_contains(self):
-        """Contains: Find words which contain the phonetic 'r'"""
-
-        q="""select ?var2 ?text
-        where {
-                ?var0 dada:partof ?parent.
-                ?var2 dada:partof ?parent.
-                ?var0 dada:type maus:phonetic.
-                ?var0 dada:label 'r'.
-                ?var2 dada:type maus:orthography.
-                ?var2 dada:label ?text.
-                ?var0 dada:targets ?time0.
-                ?time0 dada:start ?start0.
-                ?time0 dada:end ?end0.
-                ?var2 dada:targets ?time2.
-                ?time2 dada:start ?start2.
-                ?time2 dada:end ?end2.
-                filter (?start0 >= ?start2).
-                filter (?end0 <= ?end2).
-        }"""
-        results = conversion_tools.pyalveoQuery(q, limit=True)
-
-        #for result in results:
-        #    print result["text"]["value"] + ":" + result["var2"]["value"]
-
-        hand_res = results[0]
-
-        # EmuQL
-        query = "[#maus:orthography!='_'^maus:phonetic='r']"
-        q = emu_parser.emuToSparql(query)
-        results = conversion_tools.pyalveoQuery(q, limit=True)
-        emu_res = results[0]
-        
-        self.assertEqual(hand_res["var2"]["value"], emu_res["var1"]["value"])
-        
-        # LPath+
-        #query = "//_[@dada:type=maus:orthography][/r[@dada:type=maus:phonetic]]"
-        query = "//_[/r[@dada:type=maus:phonetic]]"
-        q = lpath_parser.lpathToSparql(query)
-        results = conversion_tools.pyalveoQuery(q, limit=True)
-        lpath_res = results[0]
-
-        self.assertEqual(lpath_res["var1"]["value"], emu_res["var1"]["value"])
-
         
 
     def test_followedby(self):
-        """Followedby: Find sounds which are followed by 'r' i.e. immediate siblings"""
+        """Followedby: Find sounds which are followed by 'r' i.e. sequence query including wildcard usage"""
 
         q="""select ?var0 ?text0
         where {
@@ -319,6 +274,7 @@ class TestQueries(unittest.TestCase):
         self.assertEqual(lpath_res["var1"]["value"], emu_res["var1"]["value"])
 
     def test_empty(self):
+        """Empty: Find a word 'time' that has the sound 'r' i.e. should return zero results"""
         q="""select ?var1
         where {
                 ?var0 dada:hasChild ?var1.
@@ -359,6 +315,86 @@ class TestQueries(unittest.TestCase):
         q = lpath_parser.lpathToSparql(query)
         results = conversion_tools.serverQuery(q, limit=True)
         self.assertEqual(len(results), 0)
+
+    def test_sibling(self):
+        """Sibling: Find the immediate siblings in 'time'."""
+
+        # direct sparql
+        q="""select ?text1 ?text2 ?var1 ?var2
+        where {
+                ?var0 dada:hasChild ?var1.
+                ?var0 dada:hasChild ?var2.
+                ?var1 dada:followedby ?va2.
+                ?var0 dada:type maus:orthography.
+                ?var0 dada:label 'time'.
+                ?var1 dada:type maus:phonetic.
+                ?var1 dada:label ?text1.
+                ?var2 dada:type maus:phonetic.
+                ?var2 dada:label ?text2.
+        }"""
+        results = conversion_tools.serverQuery(q, limit=True)
+        
+        hand_short_res = results[0]
+        
+
+        # indirect sparql
+        q="""select ?text1 ?text2 ?var1 ?var2
+        where {
+                ?var0 dada:partof ?parent.
+                ?var1 dada:partof ?parent.
+                ?var2 dada:partof ?parent.
+                ?var0 dada:type maus:orthography.
+                ?var0 dada:label 'time'.
+                ?var1 dada:type maus:phonetic.
+                ?var1 dada:label ?text1.
+                ?var2 dada:type maus:phonetic.
+                ?var2 dada:label ?text2.
+                ?var0 dada:targets ?time0.
+                ?time0 dada:start ?start0.
+                ?time0 dada:end ?end0.
+                ?var1 dada:targets ?time1.
+                ?time1 dada:start ?start1.
+                ?time1 dada:end ?end1.
+                ?var2 dada:targets ?time2.
+                ?time2 dada:start ?end1.
+                ?time2 dada:end ?end2.
+                filter (?start1 >= ?start0).
+                filter (?end2 <= ?end0).
+        }"""
+        results = conversion_tools.serverQuery(q, limit=True)
+        
+        hand_long_res = results[0]
+
+        #print hand_short_res["text1"]["value"]
+        #print hand_long_res["text1"]["value"]
+
+        #print hand_short_res["text2"]["value"]
+        #print hand_long_res["text2"]["value"]
+        
+        
+        self.assertEqual(hand_short_res["var1"]["value"], hand_long_res["var1"]["value"])
+        self.assertEqual(hand_short_res["text1"]["value"], hand_long_res["text1"]["value"])
+        self.assertEqual(hand_short_res["var2"]["value"], hand_long_res["var2"]["value"])
+        self.assertEqual(hand_short_res["text2"]["value"], hand_long_res["text2"]["value"])
+
+        # emu
+        query = "[maus:orthography='time'^[maus:phonetic!='_'->#maus:phonetic!='_']]"
+        q = emu_parser.emuToSparql(query)
+        results = conversion_tools.serverQuery(q, limit=True)
+
+        emu_res = results[0]
+
+        self.assertEqual(hand_long_res["var2"]["value"], emu_res["var3"]["value"])
+
+        # lpath
+        query = "//time[@dada:type=maus:orthography]/_[@dada:type=maus:phonetic]->_[@dada:type=maus:phonetic]"
+        q = lpath_parser.lpathToSparql(query)
+        results = conversion_tools.serverQuery(q, limit=True)
+
+        lpath_res = results[0]
+
+        self.assertEqual(hand_long_res["var2"]["value"], lpath_res["var10"]["value"])
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2, exit=False)
