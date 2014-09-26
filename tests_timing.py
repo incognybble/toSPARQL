@@ -169,7 +169,7 @@ class TestTiming(unittest.TestCase):
         where {
                 ?var0 dada:hasChild ?var1.
                 ?var0 dada:hasChild ?var2.
-                ?var1 dada:followedby ?va2.
+                ?var1 dada:followedby ?var2.
                 ?var0 dada:type maus:orthography.
                 ?var0 dada:label 'time'.
                 ?var1 dada:type maus:phonetic.
