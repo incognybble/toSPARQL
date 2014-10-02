@@ -463,8 +463,9 @@ def test_sibling_indirect():
     }"""
     results = conversion_tools.serverQuery(q, limit=False, timing=True)
 
-def test_sibling_emu():
+def test_nested_emu():
     query = "[maus:orthography='time'^[maus:phonetic!='_'->#maus:phonetic!='_']]"
+    #query = "[[maus:phonetic!='_'^maus:orthography='time']->#maus:phonetic!='_']"
     q = emu_parser.emuToSparql(query)
     sparql = """select ?var3
     where {
@@ -494,9 +495,37 @@ def test_sibling_emu():
                     ?var3 dada:label '_'.
             }
     }"""
+##    sparql = """select ?var10
+##    where {
+##            ?var1 dada:type maus:phonetic.
+##            ?var2 dada:type maus:orthography.
+##            ?var2 dada:label 'time'.
+##            ?var1 dada:partof ?var3.
+##            ?var2 dada:partof ?var3.
+##            ?var1 dada:targets ?var4.
+##            ?var2 dada:targets ?var5.
+##            ?var4 dada:start ?var6.
+##            ?var5 dada:start ?var7.
+##            ?var4 dada:end ?var8.
+##            ?var5 dada:end ?var9.
+##            ?var10 dada:type maus:phonetic.
+##            ?var1 dada:partof ?var11.
+##            ?var10 dada:partof ?var11.
+##            ?var1 dada:targets ?var12.
+##            ?var10 dada:targets ?var13.
+##            ?var12 dada:end ?var14.
+##            ?var13 dada:start ?var15.
+##            filter( ?var7 >= ?var6).
+##            filter( ?var9 <= ?var8).
+##            filter( ?var14 = ?var15).
+##            FILTER NOT EXISTS {
+##                    ?var1 dada:label '_'.
+##                    ?var10 dada:label '_'.
+##            }
+##    }"""
     results = conversion_tools.serverQuery(sparql, limit=False, timing=True)
 
-def test_sibling_lpath():
+def test_nested_lpath():
     query = "//time[@dada:type=maus:orthography]/_[@dada:type=maus:phonetic]->_[@dada:type=maus:phonetic]"
     q = lpath_parser.lpathToSparql(query)
     sparql = """select ?var10
@@ -525,42 +554,282 @@ def test_sibling_lpath():
     }"""
     results = conversion_tools.serverQuery(sparql, limit=False, timing=True)
 
+def test_nested_direct():
+    """Fixed to match converted versions"""
+    q="""select ?text1 ?text2 ?var1 ?var2
+    where {
+            ?var0 dada:hasChild ?var1.
+            ?var1 dada:followedby ?var2.
+            ?var0 dada:type maus:orthography.
+            ?var0 dada:label 'time'.
+            ?var1 dada:type maus:phonetic.
+            ?var1 dada:label ?text1.
+            ?var2 dada:type maus:phonetic.
+            ?var2 dada:label ?text2.
+    }"""
+    results = conversion_tools.serverQuery(q, limit=False, timing=True)
+    
+def test_nested_indirect():
+    """Fixed to match converted versions"""
+    q="""select ?text1 ?text2 ?var1 ?var2
+    where {
+            ?var0 dada:partof ?parent.
+            ?var1 dada:partof ?parent.
+            ?var2 dada:partof ?parent.
+            ?var0 dada:type maus:orthography.
+            ?var0 dada:label 'time'.
+            ?var1 dada:type maus:phonetic.
+            ?var1 dada:label ?text1.
+            ?var2 dada:type maus:phonetic.
+            ?var2 dada:label ?text2.
+            ?var0 dada:targets ?time0.
+            ?time0 dada:start ?start0.
+            ?time0 dada:end ?end0.
+            ?var1 dada:targets ?time1.
+            ?time1 dada:start ?start1.
+            ?time1 dada:end ?end1.
+            ?var2 dada:targets ?time2.
+            ?time2 dada:start ?end1.
+            filter (?start1 >= ?start0).
+            filter (?end1 <= ?end0).
+    }"""
+    results = conversion_tools.serverQuery(q, limit=False, timing=True)
 
+def test_nested_direct_optimise1():
+    """Moved the 'time' bit"""
+    q="""select ?text1 ?text2 ?var1 ?var2
+    where {
+            ?var0 dada:label 'time'.
+            ?var0 dada:type maus:orthography.
+            ?var0 dada:hasChild ?var1.
+            ?var1 dada:followedby ?var2.
+            ?var1 dada:type maus:phonetic.
+            ?var1 dada:label ?text1.
+            ?var2 dada:type maus:phonetic.
+            ?var2 dada:label ?text2.
+    }"""
+    results = conversion_tools.serverQuery(q, limit=False, timing=True)
+
+def test_nested_direct_optimise2():
+    """Moved the 'time' bit and dada:type bits"""
+    q="""select ?text1 ?text2 ?var1 ?var2
+    where {
+            ?var0 dada:label 'time'.
+            ?var0 dada:type maus:orthography.
+            ?var1 dada:type maus:phonetic.
+            ?var2 dada:type maus:phonetic.
+            ?var0 dada:hasChild ?var1.
+            ?var1 dada:followedby ?var2.
+            ?var1 dada:label ?text1.
+            ?var2 dada:label ?text2.
+    }"""
+    results = conversion_tools.serverQuery(q, limit=False, timing=True)
+    
+def test_nested_indirect_optimise1():
+    """Moved the 'time bit'"""
+    q="""select ?text1 ?text2 ?var1 ?var2
+    where {
+            ?var0 dada:label 'time'.
+            ?var0 dada:type maus:orthography.
+            ?var0 dada:partof ?parent.
+            ?var1 dada:partof ?parent.
+            ?var2 dada:partof ?parent.
+            ?var1 dada:type maus:phonetic.
+            ?var1 dada:label ?text1.
+            ?var2 dada:type maus:phonetic.
+            ?var2 dada:label ?text2.
+            ?var0 dada:targets ?time0.
+            ?time0 dada:start ?start0.
+            ?time0 dada:end ?end0.
+            ?var1 dada:targets ?time1.
+            ?time1 dada:start ?start1.
+            ?time1 dada:end ?end1.
+            ?var2 dada:targets ?time2.
+            ?time2 dada:start ?end1.
+            filter (?start1 >= ?start0).
+            filter (?end1 <= ?end0).
+    }"""
+    results = conversion_tools.serverQuery(q, limit=False, timing=True)
+
+def test_nested_indirect_optimise2():
+    """Moved the 'time' bit and used the time filter thing"""
+    q="""select ?text1 ?text2 ?var1 ?var2
+    where {
+            ?var0 dada:label 'time'.
+            ?var0 dada:type maus:orthography.
+            ?var0 dada:partof ?parent.
+            ?var1 dada:partof ?parent.
+            ?var2 dada:partof ?parent.
+            ?var1 dada:type maus:phonetic.
+            ?var1 dada:label ?text1.
+            ?var2 dada:type maus:phonetic.
+            ?var2 dada:label ?text2.
+            ?var0 dada:targets ?time0.
+            ?time0 dada:start ?start0.
+            ?time0 dada:end ?end0.
+            ?var1 dada:targets ?time1.
+            ?time1 dada:start ?start1.
+            ?time1 dada:end ?end1.
+            ?var2 dada:targets ?time2.
+            ?time2 dada:start ?start2.
+            filter (?start1 >= ?start0).
+            filter (?end1 <= ?end0).
+            filter (?end1 = ?start2).
+    }"""
+    results = conversion_tools.serverQuery(q, limit=False, timing=True)
+
+def test_nested_indirect_optimise3():
+    """Moved the 'time' bit, type bits, filter"""
+    q="""select ?text1 ?text2 ?var1 ?var2
+    where {
+            ?var0 dada:label 'time'.
+            ?var0 dada:type maus:orthography.
+            ?var1 dada:type maus:phonetic.
+            ?var2 dada:type maus:phonetic.
+            ?var0 dada:partof ?parent.
+            ?var1 dada:partof ?parent.
+            ?var2 dada:partof ?parent.
+            ?var1 dada:label ?text1.
+            ?var2 dada:label ?text2.
+            ?var0 dada:targets ?time0.
+            ?time0 dada:start ?start0.
+            ?time0 dada:end ?end0.
+            ?var1 dada:targets ?time1.
+            ?time1 dada:start ?start1.
+            ?time1 dada:end ?end1.
+            ?var2 dada:targets ?time2.
+            ?time2 dada:start ?start2.
+            filter (?start1 >= ?start0).
+            filter (?end1 <= ?end0).
+            filter (?end1 = ?start2).
+    }"""
+    results = conversion_tools.serverQuery(q, limit=False, timing=True)
+
+def test_nested_indirect_optimise4():
+    """Moved the 'time' bit, type bits, filter is higher up"""
+    q="""select ?text1 ?text2 ?var1 ?var2
+    where {
+            ?var0 dada:label 'time'.
+            ?var0 dada:type maus:orthography.
+            ?var1 dada:type maus:phonetic.
+            ?var2 dada:type maus:phonetic.
+            ?var0 dada:partof ?parent.
+            ?var1 dada:partof ?parent.
+            ?var2 dada:partof ?parent.
+            ?var1 dada:label ?text1.
+            ?var2 dada:label ?text2.
+            ?var0 dada:targets ?time0.
+            ?time0 dada:start ?start0.
+            ?time0 dada:end ?end0.
+            ?var1 dada:targets ?time1.
+            ?time1 dada:start ?start1.
+            ?time1 dada:end ?end1.
+            ?var2 dada:targets ?time2.
+            ?time2 dada:start ?start2.
+            filter (?end1 = ?start2).
+            filter (?start1 >= ?start0).
+            filter (?end1 <= ?end0).
+    }"""
+    results = conversion_tools.serverQuery(q, limit=False, timing=True)
+
+def test_nested_indirect_optimise5():
+    """Moved the 'time' bit, type bits, filter is higher up, similar relations grouped"""
+    q="""select ?text1 ?text2 ?var1 ?var2
+    where {
+            ?var0 dada:label 'time'.
+            ?var0 dada:type maus:orthography.
+            ?var1 dada:type maus:phonetic.
+            ?var2 dada:type maus:phonetic.
+            ?var0 dada:partof ?parent.
+            ?var1 dada:partof ?parent.
+            ?var2 dada:partof ?parent.
+            ?var1 dada:label ?text1.
+            ?var2 dada:label ?text2.
+            ?var0 dada:targets ?time0.
+            ?var1 dada:targets ?time1.
+            ?var2 dada:targets ?time2.
+            ?time0 dada:start ?start0.
+            ?time1 dada:start ?start1.
+            ?time2 dada:start ?start2.
+            ?time0 dada:end ?end0.
+            ?time1 dada:end ?end1.
+            filter (?end1 = ?start2).
+            filter (?start1 >= ?start0).
+            filter (?end1 <= ?end0).
+    }"""
+    results = conversion_tools.serverQuery(q, limit=False, timing=True)
+
+def test_nested_indirect_optimise6():
+    """optimise5 without ?text since the converters won't return that"""
+    q="""select ?var1 ?var2
+    where {
+            ?var0 dada:label 'time'.
+            ?var0 dada:type maus:orthography.
+            ?var1 dada:type maus:phonetic.
+            ?var2 dada:type maus:phonetic.
+            ?var0 dada:partof ?parent.
+            ?var1 dada:partof ?parent.
+            ?var2 dada:partof ?parent.
+            ?var0 dada:targets ?time0.
+            ?var1 dada:targets ?time1.
+            ?var2 dada:targets ?time2.
+            ?time0 dada:start ?start0.
+            ?time1 dada:start ?start1.
+            ?time2 dada:start ?start2.
+            ?time0 dada:end ?end0.
+            ?time1 dada:end ?end1.
+            filter (?end1 = ?start2).
+            filter (?start1 >= ?start0).
+            filter (?end1 <= ?end0).
+    }"""
+    results = conversion_tools.serverQuery(q, limit=False, timing=True)
+    
 if __name__ == "__main__":
     # dominance
-    print "Dominance"
-    test_dominance_direct()
-    test_dominance_indirect()
-    test_dominance_emu()
-    test_dominance_lpath()
-    test_dominance_optimise1()
-    test_dominance_optimise2()
-    test_dominance_optimise3()
-    test_dominance_optimise4()
-    test_dominance_optimise5()
-
-    # empty / bad dominance
-    print "\nEmpty/bad dominance"
-    test_empty_indirect()
-    test_empty_emu()
-    test_empty_lpath()
-    test_empty_optimise()
-
-    # followedby
-    print "\nFollowed by"
-    test_followedby_direct()
-    test_followedby_indirect()
-    test_followedby_emu()
-    test_followedby_lpath()
-    test_followedby_optimise1()
-    test_followedby_optimise2()
-    test_followedby_optimise3()
-    test_followedby_optimise4()
-
-    #sibling
-    print "\nSibling"
-    test_sibling_direct()
-    test_sibling_indirect()
-    test_sibling_emu()
-    test_sibling_lpath()
-
+##    print "Dominance"
+##    test_dominance_direct()
+##    test_dominance_indirect()
+##    test_dominance_emu()
+##    test_dominance_lpath()
+##    test_dominance_optimise1()
+##    test_dominance_optimise2()
+##    test_dominance_optimise3()
+##    test_dominance_optimise4()
+##    test_dominance_optimise5()
+##
+##    # empty / bad dominance
+##    print "\nEmpty/bad dominance"
+##    test_empty_indirect()
+##    test_empty_emu()
+##    test_empty_lpath()
+##    test_empty_optimise()
+##
+##    # followedby
+##    print "\nFollowed by"
+##    test_followedby_direct()
+##    test_followedby_indirect()
+##    test_followedby_emu()
+##    test_followedby_lpath()
+##    test_followedby_optimise1()
+##    test_followedby_optimise2()
+##    test_followedby_optimise3()
+##    test_followedby_optimise4()
+##
+##    #sibling
+##    print "\nSibling/nested"
+##    test_sibling_direct()
+##    test_sibling_indirect()
+    test_nested_emu()
+    test_nested_lpath()
+    test_nested_direct()
+    print "nested indirect takes 21hrs"
+    #test_nested_indirect()
+    test_nested_direct_optimise1()
+    test_nested_direct_optimise2()
+    print "nested indirect optimise1 takes 21hrs"
+    #test_nested_indirect_optimise1()
+    test_nested_indirect_optimise2()
+    test_nested_indirect_optimise3()
+    test_nested_indirect_optimise4()
+    test_nested_indirect_optimise5()
+    test_nested_indirect_optimise6()
